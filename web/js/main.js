@@ -334,9 +334,9 @@ function startCountdownAndWorkout() {
     startWorkoutBtn.textContent = state.currentMode === "challenge" ? "도전 중지" : "운동 정지";
   }
 
+  resetCounter({ keepButtonLabel: true });
   state.countdownActive = true;
   state.countdownValue = 5;
-  resetCounter({ keepButtonLabel: true });
   statusLabel.textContent = "시작 준비";
   statusDetail.textContent = "5초 후에 시작합니다.";
   playCountdown();
