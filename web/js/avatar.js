@@ -16,9 +16,11 @@ let avatarAnimationId = null;
 let avatarLoadToken = 0;
 let avatarBoneRestQuats = {};
 let avatarBoneRestDirs = {};
+let avatarBoneTargetQuats = {};
 
 const MIRROR_AVATAR = true;
 const LOCK_HEAD_FORWARD = true;
+const BONE_SMOOTH_FACTOR = 0.2; // 0..1, higher is faster
 
 const DEFAULT_DIRECTIONS = {
   rightarm: new THREE.Vector3(1, 0, 0),
@@ -96,6 +98,7 @@ export function loadAvatarModel(name) {
   avatarBoneMap = {};
   avatarBoneRestQuats = {};
   avatarBoneRestDirs = {};
+  avatarBoneTargetQuats = {};
 
   loader.load(
     url,
@@ -240,7 +243,13 @@ function rotateBone(boneName, dir) {
   targetVec.normalize();
   restDir.normalize();
   const delta = new THREE.Quaternion().setFromUnitVectors(restDir, targetVec);
-  bone.quaternion.copy(restQuat.multiply(delta));
+  const targetQuat = restQuat.multiply(delta);
+  avatarBoneTargetQuats[norm] = targetQuat.clone();
+  if (BONE_SMOOTH_FACTOR >= 1) {
+    bone.quaternion.copy(targetQuat);
+  } else {
+    bone.quaternion.slerp(targetQuat, BONE_SMOOTH_FACTOR);
+  }
 }
 
 function resetBoneToRest(boneName) {
@@ -249,7 +258,12 @@ function resetBoneToRest(boneName) {
   const norm = normalizeBoneName(boneName);
   const restQuat = avatarBoneRestQuats[norm];
   if (restQuat) {
-    bone.quaternion.copy(restQuat);
+    avatarBoneTargetQuats[norm] = restQuat.clone();
+    if (BONE_SMOOTH_FACTOR >= 1) {
+      bone.quaternion.copy(restQuat);
+    } else {
+      bone.quaternion.slerp(restQuat, BONE_SMOOTH_FACTOR);
+    }
   }
 }
 
