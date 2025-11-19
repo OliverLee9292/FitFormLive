@@ -14,6 +14,25 @@ let avatarModel = null;
 let avatarBoneMap = {};
 let avatarAnimationId = null;
 let avatarLoadToken = 0;
+let avatarBoneRestQuats = {};
+let avatarBoneRestDirs = {};
+
+const MIRROR_AVATAR = true;
+const LOCK_HEAD_FORWARD = true;
+
+const DEFAULT_DIRECTIONS = {
+  rightarm: new THREE.Vector3(1, 0, 0),
+  rightforearm: new THREE.Vector3(1, 0, 0),
+  leftarm: new THREE.Vector3(-1, 0, 0),
+  leftforearm: new THREE.Vector3(-1, 0, 0),
+  rightupleg: new THREE.Vector3(0, -1, 0),
+  rightleg: new THREE.Vector3(0, -1, 0),
+  leftupleg: new THREE.Vector3(0, -1, 0),
+  leftleg: new THREE.Vector3(0, -1, 0),
+  spine2: new THREE.Vector3(0, 1, 0),
+  neck: new THREE.Vector3(0, 1, 0),
+  head: new THREE.Vector3(0, 1, 0),
+};
 
 export function initAvatar(container) {
   if (!container || avatarRenderer) return;
@@ -75,6 +94,8 @@ export function loadAvatarModel(name) {
   }
   avatarModel = null;
   avatarBoneMap = {};
+  avatarBoneRestQuats = {};
+  avatarBoneRestDirs = {};
 
   loader.load(
     url,
@@ -83,13 +104,6 @@ export function loadAvatarModel(name) {
         return;
       }
       avatarModel = gltf.scene;
-      avatarBoneMap = {};
-
-      avatarModel.traverse((obj) => {
-        if (obj.isBone) {
-          avatarBoneMap[obj.name] = obj;
-        }
-      });
 
       const box = new THREE.Box3().setFromObject(avatarModel);
       const size = box.getSize(new THREE.Vector3());
@@ -106,6 +120,8 @@ export function loadAvatarModel(name) {
       }
 
       avatarScene.add(avatarModel);
+      avatarModel.updateMatrixWorld(true);
+      cacheBoneData(avatarModel);
 
       if (avatarCamera) {
         const newBox = new THREE.Box3().setFromObject(avatarModel);
@@ -135,11 +151,54 @@ function isConfident(kp) {
   return kp && kp.score >= 0.3;
 }
 
+function normalizeBoneName(name) {
+  return (name || "")
+    .toLowerCase()
+    .replace(/mixamorig|armature|_| |\./g, "");
+}
+
+function getDefaultDirection(normName) {
+  const vec = DEFAULT_DIRECTIONS[normName];
+  return vec ? vec.clone() : new THREE.Vector3(0, 1, 0);
+}
+
+function cacheBoneData(root) {
+  if (!root) return;
+  root.updateMatrixWorld(true);
+  root.traverse((obj) => {
+    if (!obj.isBone) return;
+    const norm = normalizeBoneName(obj.name);
+    if (!norm) return;
+    avatarBoneMap[norm] = obj;
+    avatarBoneRestQuats[norm] = obj.quaternion.clone();
+    const restDir = computeRestDirection(obj, norm);
+    avatarBoneRestDirs[norm] = restDir;
+  });
+}
+
+function computeRestDirection(bone, normName) {
+  const origin = new THREE.Vector3();
+  const childPos = new THREE.Vector3();
+  bone.getWorldPosition(origin);
+  for (const child of bone.children) {
+    if (!child.isBone) continue;
+    child.getWorldPosition(childPos);
+    const dir = childPos.clone().sub(origin);
+    if (dir.lengthSq() > 1e-6) {
+      return dir.normalize();
+    }
+  }
+  return getDefaultDirection(normName);
+}
+
 function computeDirection(from, to) {
   if (!isConfident(from) || !isConfident(to)) return null;
-  const dx = to.x - from.x;
-  const dy = -(to.y - from.y);
+  let dx = to.x - from.x;
+  let dy = -(to.y - from.y);
   const dz = 0;
+  if (MIRROR_AVATAR) {
+    dx *= -1;
+  }
   const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
   if (len < 0.001) return null;
   return { x: dx / len, y: dy / len, z: dz / len };
@@ -147,18 +206,24 @@ function computeDirection(from, to) {
 
 function findBone(name) {
   if (!avatarModel) return null;
-  if (avatarBoneMap[name]) return avatarBoneMap[name];
+  const norm = normalizeBoneName(name);
+  if (avatarBoneMap[norm]) return avatarBoneMap[norm];
   let found = null;
   avatarModel.traverse((child) => {
-    if (
-      child.name === name ||
-      child.name.toLowerCase() === name.toLowerCase()
-    ) {
+    if (!child.isBone) return;
+    const childNorm = normalizeBoneName(child.name);
+    if (childNorm === norm) {
       found = child;
     }
   });
   if (found) {
-    avatarBoneMap[name] = found;
+    avatarBoneMap[norm] = found;
+    if (!avatarBoneRestQuats[norm]) {
+      avatarBoneRestQuats[norm] = found.quaternion.clone();
+    }
+    if (!avatarBoneRestDirs[norm]) {
+      avatarBoneRestDirs[norm] = getDefaultDirection(norm);
+    }
   }
   return found;
 }
@@ -167,12 +232,25 @@ function rotateBone(boneName, dir) {
   if (!dir) return;
   const bone = findBone(boneName);
   if (!bone) return;
-  const targetPos = new THREE.Vector3(
-    bone.position.x + dir.x,
-    bone.position.y + dir.y,
-    bone.position.z + dir.z
-  );
-  bone.lookAt(targetPos);
+  const norm = normalizeBoneName(boneName);
+  const restQuat = (avatarBoneRestQuats[norm] || bone.quaternion).clone();
+  const restDir = (avatarBoneRestDirs[norm] || getDefaultDirection(norm)).clone();
+  const targetVec = new THREE.Vector3(dir.x, dir.y, dir.z ?? 0);
+  if (targetVec.lengthSq() < 1e-6 || restDir.lengthSq() < 1e-6) return;
+  targetVec.normalize();
+  restDir.normalize();
+  const delta = new THREE.Quaternion().setFromUnitVectors(restDir, targetVec);
+  bone.quaternion.copy(restQuat.multiply(delta));
+}
+
+function resetBoneToRest(boneName) {
+  const bone = findBone(boneName);
+  if (!bone) return;
+  const norm = normalizeBoneName(boneName);
+  const restQuat = avatarBoneRestQuats[norm];
+  if (restQuat) {
+    bone.quaternion.copy(restQuat);
+  }
 }
 
 export function updateAvatarFromPose(keypoints) {
@@ -223,13 +301,18 @@ export function updateAvatarFromPose(keypoints) {
     rotateBone("mixamorigSpine2", computeDirection(hipMid, spineMid));
   }
 
-  const nose = keypoints[KEY.nose];
-  const lEar = keypoints[KEY.leftEar];
-  const rEar = keypoints[KEY.rightEar];
-  const refEar = isConfident(rEar) ? rEar : lEar;
-  if (isConfident(nose) && isConfident(refEar)) {
-    const dir = computeDirection(refEar, nose);
-    rotateBone("mixamorigHead", dir);
-    rotateBone("mixamorigNeck", dir);
+  if (LOCK_HEAD_FORWARD) {
+    resetBoneToRest("mixamorigHead");
+    resetBoneToRest("mixamorigNeck");
+  } else {
+    const nose = keypoints[KEY.nose];
+    const lEar = keypoints[KEY.leftEar];
+    const rEar = keypoints[KEY.rightEar];
+    const refEar = isConfident(rEar) ? rEar : lEar;
+    if (isConfident(nose) && isConfident(refEar)) {
+      const dir = computeDirection(refEar, nose);
+      rotateBone("mixamorigHead", dir);
+      rotateBone("mixamorigNeck", dir);
+    }
   }
 }

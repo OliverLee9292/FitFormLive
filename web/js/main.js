@@ -105,12 +105,14 @@ function selectExerciseAndStart(key) {
 
   const ex = EXERCISES[key];
   updateCurrentExerciseLabel();
-  statusLabel.textContent = "Set start position";
-  statusDetail.textContent = ex.start?.hint || "준비자세를 맞춰 주세요.";
-  speakText(`${ex.name}를 선택했습니다. ${ex.start?.hint || "준비자세를 맞춰 주세요."}`);
+  statusLabel.textContent = "동작 선택됨";
+  statusDetail.textContent =
+    (ex.start?.hint || "준비자세를 맞춰 주세요.") + " 운동 시작 버튼을 누르면 5초 후에 시작합니다.";
+  speakText(
+    `${ex.name}를 선택했습니다. ${ex.start?.hint || "준비자세를 맞춰 주세요."} 준비가 되면 운동 시작 버튼을 눌러 주세요.`
+  );
 
   closeExercisePicker();
-  startCountdownAndWorkout();
 }
 
 function handleRepCounted(rep) {
@@ -132,11 +134,18 @@ function handleFullBodyState(keypoints) {
     state.fullBodyDetected = false;
     state.workoutPausedForNoBody = false;
     state.waitingForFullBodyStart = false;
+    state.fullBodyStableFrames = 0;
     if (avatarWarningEl) avatarWarningEl.style.display = "none";
     return;
   }
   const now = performance.now();
-  const visible = isFullBodyVisible(keypoints);
+  const rawVisible = isFullBodyVisible(keypoints);
+  if (rawVisible) {
+    state.fullBodyStableFrames = Math.min(state.fullBodyStableFrames + 1, 60);
+  } else {
+    state.fullBodyStableFrames = 0;
+  }
+  const visible = rawVisible && state.fullBodyStableFrames >= 4;
 
   if (visible) {
     state.fullBodyDetected = true;

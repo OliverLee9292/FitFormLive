@@ -315,6 +315,7 @@ export const state = {
   workoutPausedForNoBody: false,
   waitingForFullBodyStart: false,
   countdownTimerId: null,
+  fullBodyStableFrames: 0,
 };
 
 export function resetCounter(options = {}) {
