@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <title>MyPT Azure – On-device Pose Demo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/modern-normalize/2.0.0/modern-normalize.min.css"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.158.0/examples/jsm/"
+        }
+      }
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.16.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose"></script>
+    <script src="https://aka.ms/csspeech/jsbrowserpackageraw"></script>
+  </head>
+  <body>
+    <div class="page">
+      <header>
+        <div class="title-row">
+          <span class="emoji">🏋️‍♂️</span>
+          <h1>FIT FORM LIVE - 헬린이를 위한 AI PT</h1>
+        </div>
+        <p class="subtitle">
+          Microsoft AI School 8기 1차 프로젝트 7팀 [김태훈, 고영후, 이재웅, 이동현, 이누리, 허진호]
+        </p>
+      </header>
+
+      <nav id="top-menu" class="top-menu">
+        <button class="btn secondary" id="menu-training">트레이닝 모드</button>
+        <button class="btn secondary" id="menu-avatar">아바타 모드</button>
+        <button class="btn secondary" id="menu-challenge">도전 모드</button>
+        <button class="btn secondary" id="menu-dev">개발자 도구</button>
+      </nav>
+
+      <main>
+        <div id="workout-row" class="workout-row">
+          <div id="training-view">
+            <section class="video-shell">
+              <div class="video-toolbar">
+                <div class="video-toolbar-left">
+                  <div class="pill">
+                    <span class="pill-dot"></span>
+                    <span id="model-label">MoveNet Lightning · On-device</span>
+                  </div>
+
+                  <div class="current-exercise-display">
+                    <span class="current-ex-label">현재 수행 동작:</span>
+                    <span id="current-exercise-name">Right Arm Curl</span>
+                  </div>
+                  <button id="open-exercise-picker" class="btn secondary" style="margin-left: 8px;">수행 동작 선택</button>
+                  <div class="character-select" id="avatar-style-wrapper" style="display:none; margin-left:8px; position:relative;">
+                    <select id="avatar-style-select">
+                      <option value="basic">남성</option>
+                      <option value="cute">여성</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <button id="toggle-overlay" class="btn secondary">포즈선 끄기</button>
+                  <button id="toggle-camera" class="btn">카메라 시작</button>
+                </div>
+              </div>
+
+              <div class="video-wrapper">
+                <div id="camera-layer" style="position:absolute; inset:0;">
+                  <video id="video" playsinline></video>
+                  <canvas id="canvas"></canvas>
+                </div>
+
+                <div id="countdown-overlay" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:72px; font-weight:700; color:white; text-shadow:0 0 16px rgba(0,0,0,0.8); background:rgba(15,23,42,0.45); opacity:0; transition:opacity 0.2s ease-out; pointer-events:none;"></div>
+                <div id="rep-overlay" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:80px; font-weight:800; color:white; text-shadow:0 0 24px rgba(0,0,0,0.9); pointer-events:none; opacity:0; transition:opacity 0.2s ease-out;"></div>
+
+                <div id="summary-overlay" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(15,23,42,0.9); color:white; opacity:0; pointer-events:none; transition:opacity 0.25s ease-out; z-index:9999">
+                  <div style="max-width:420px; padding:24px 28px; border-radius:18px; background:rgba(15,23,42,0.98); border:1px solid rgba(148,163,184,0.4); box-shadow:0 24px 60px rgba(0,0,0,0.8);">
+                    <h2 style="margin:0 0 12px; font-size:20px; font-weight:700;">운동 요약</h2>
+                    <p style="margin:0; font-size:14px; color:#9ca3af;">운동이 끝나면 요약이 여기 표시됩니다.</p>
+                  </div>
+                </div>
+
+                <div id="exercise-picker-overlay">
+                  <div id="exercise-picker-panel" class="exercise-picker-panel"></div>
+                </div>
+
+                <div
+                  id="avatar-container"
+                  style="position:absolute; inset:0; width:100%; height:100%; background:#0f172a; border-radius:12px; overflow:hidden; display:none;"
+                >
+                  <div id="avatar-warning" style="position:absolute; inset:0; display:none; align-items:center; justify-content:center; font-size:18px; color:#e5e7eb; background:rgba(15,23,42,0.6); text-align:center; padding:16px;">
+                    전신이 화면에 모두 들어오도록<br />카메라와 충분한 거리를 두어주세요.
+                  </div>
+                </div>
+
+                <div class="hud-card">
+                  <div class="hud-title" id="hud-exercise">Right Arm Curl</div>
+
+                  <div class="hud-row">
+                    <div>Reps:<strong id="hud-reps">0</strong></div>
+                    <div>Angle:<strong id="hud-angle">0°</strong></div>
+                    <div>FPS:<strong id="hud-fps">0</strong></div>
+                  </div>
+
+                  <div class="status-row">
+                    <div id="status-dot" class="status-dot"></div>
+                    <div class="status-text">
+                      상태: <strong id="status-label">-</strong>
+                      <span id="status-detail" style="margin-left: 4px; color: var(--muted);"></span>
+                    </div>
+                  </div>
+
+                  <button id="start-workout-btn" class="btn">운동 시작</button>
+                  <button id="reset-btn" class="btn secondary" style="margin-left: 8px;">카운트 초기화</button>
+                </div>
+
+                <div id="challenge-view" style="display:none;">
+                  <div style="padding:16px; background:rgba(15,23,42,0.9); border-radius:16px; border:1px solid rgba(148,163,184,0.3);">
+                    <h2 style="margin:0 0 8px;">도전 모드 타이머</h2>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                      <button class="btn secondary challenge-timer" data-minutes="1">1분</button>
+                      <button class="btn secondary challenge-timer" data-minutes="3">3분</button>
+                      <button class="btn secondary challenge-timer" data-minutes="5">5분</button>
+                      <button class="btn secondary challenge-timer" data-minutes="10">10분</button>
+                    </div>
+                    <div style="margin-top:12px; font-size:14px; color:#e5e7eb;">
+                      남은 시간: <strong id="challenge-remaining">-</strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <div id="avatar-view" style="display:none; width:100%; max-width:1200px; margin-top:20px;">
+          <div style="padding:16px; background:rgba(15,23,42,0.9); border-radius:16px; border:1px solid rgba(148,163,184,0.3);">
+            <h2 style="margin:0 0 8px;">3D 아바타 모드</h2>
+            <p style="color:#9ca3af; font-size:14px; margin:0;">
+              나의 운동 동작을 그대로 따라하는 3D 아바타! 게임처럼 즐기면서 자세를 점검해보세요.
+            </p>
+          </div>
+        </div>
+
+        <div id="dev-view" style="display:none; width:100%; max-width:1200px; margin-top:20px;">
+          <div style="padding:16px; background:rgba(15,23,42,0.9); border-radius:16px; border:1px solid rgba(148,163,184,0.3); margin-bottom:16px;">
+            <h2 style="margin:0 0 12px;">개발자 도구 · 자세 분류 엔진</h2>
+            <p style="color:#9ca3af; font-size:14px; margin:0 0 8px;">
+              FIT FORM LIVE의 자세 평가는 <strong>MoveNet 포즈 추정 + ML 회귀/분류 모델</strong>로 이루어집니다.
+              각 프레임에서 포즈를 추출한 뒤, <strong>정상 자세에 얼마나 가까운지</strong>를 점수로 계산합니다.
+            </p>
+            <ul style="margin:8px 0 0 16px; padding:0; color:#9ca3af; font-size:13px; line-height:1.5;">
+              <li><strong>포즈 추정:</strong> MoveNet(Single Pose) 기반, 17개 관절 좌표 + score</li>
+              <li><strong>피처 엔지니어링:</strong> 관절 각도, 관절 간 거리, 정규화 좌표 등</li>
+              <li><strong>레이블 생성:</strong> 도메인 룰(rule)로 계산한 정상/비정상 점수</li>
+              <li><strong>ML 모델:</strong> 트리 기반 회귀/분류 모델 (예: Gradient Boosting, RandomForest 계열)</li>
+              <li><strong>출력:</strong> 프레임별 “자세 정상도 점수” 및 임계값 기반 정상/비정상 판별</li>
+            </ul>
+          </div>
+
+          <div style="padding:16px; background:rgba(15,23,42,0.9); border-radius:16px; border:1px solid rgba(148,163,184,0.3); margin-bottom:16px;">
+            <h3 style="margin:0 0 8px; font-size:16px;">학습 데이터 &amp; 피처 구조</h3>
+            <p style="color:#9ca3af; font-size:13px; margin:0 0 8px;">
+              학습에 사용된 데이터셋은 각 프레임마다 MoveNet keypoint와 파생 피처를 포함하고,
+              <strong>룰 기반 점수(rule score)</strong>를 정답(label)로 사용해 ML 모델을 학습했습니다.
+            </p>
+            <ul style="margin:8px 0 0 16px; padding:0; color:#9ca3af; font-size:13px; line-height:1.5;">
+              <li><strong>keypoint_xxx:</strong> 17개 관절의 (x, y, score)</li>
+              <li><strong>angle_*</strong>: 팔꿈치, 무릎 등 주요 관절 각도</li>
+              <li><strong>거리 피처:</strong> 어깨–팔꿈치, 엉덩이–무릎 등 관절 간 거리</li>
+              <li><strong>rule_score / good_score:</strong> 사람이 설계한 룰로 계산한 “정상 자세 점수”</li>
+            </ul>
+            <p style="color:#9ca3af; font-size:13px; margin:8px 0 0;">
+              모델은 이 피처들을 입력으로 받아 <strong>rule_score를 근사하도록 학습</strong>되었고,
+              서비스에서는 이 예측값을 기반으로 <strong>정상 / 비정상</strong>을 실시간으로 표시합니다.
+            </p>
+          </div>
+
+          <div style="padding:16px; background:rgba(15,23,42,0.9); border-radius:16px; border:1px solid rgba(148,163,184,0.3);">
+            <h3 style="margin:0 0 8px; font-size:16px;">내 데이터로 직접 돌려보기 (GitHub)</h3>
+            <p style="color:#9ca3af; font-size:13px; margin:0 0 8px;">
+              아래 버튼을 누르면, FIT FORM LIVE에서 사용한 <strong>자세 분류용 노트북 및 학습 코드</strong>가 있는
+              GitHub 리포지토리로 이동합니다. 로컬에서 Jupyter 환경을 열어, 본인 데이터로 직접 실험해 볼 수 있습니다.
+            </p>
+            <ol style="margin:8px 0 8px 18px; padding:0; color:#9ca3af; font-size:13px; line-height:1.6;">
+              <li>GitHub에서 <strong>ipynb / Python 스크립트</strong>를 다운로드합니다.</li>
+              <li>로컬에서 <strong>conda / venv</strong> 환경을 만들고, 요구 패키지를 설치합니다.</li>
+              <li>본인의 프레임 데이터(CSV 또는 영상에서 추출)를 넣고, 동일한 파이프라인으로 점수를 계산해 봅니다.</li>
+            </ol>
+
+            <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;">
+              <a
+                href="https://github.com/Bauhaus-K/FitForm-Live-Project/tree/main/classification%20model"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="btn secondary"
+                style="text-decoration:none; font-size:13px; padding:6px 12px;"
+              >
+                📥 GitHub에서 노트북 / 코드 열기
+              </a>
+            </div>
+
+            <p style="color:#6b7280; font-size:12px; margin:10px 0 0;">
+              * GitHub 리포지토리 안의 설명(README, 노트북 마크다운 셀)을 참고해,
+              데이터 경로와 하이퍼파라미터를 자유롭게 수정해 보세요.
+            </p>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+  </body>
+</html>

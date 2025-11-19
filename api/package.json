@@ -1,0 +1,8 @@
+{
+  "name": "mypt-azure-api",
+  "version": "1.0.0",
+  "description": "Backend functions for MyPT Azure Static Web App",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {}
+}
