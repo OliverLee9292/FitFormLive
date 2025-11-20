@@ -2,6 +2,8 @@
 
 Camera-based personal training experience built for Microsoft AI School project team 7.
 
+[Live Demo](https://wonderful-ocean-031249900.3.azurestaticapps.net/)
+
 ## Features
 
 - **MoveNet-based pose tracking** with rep counting and feedback for curls, squats, lunges, push-ups, and shoulder presses.
