@@ -18,7 +18,6 @@ let avatarBoneRestQuats = {};
 let avatarBoneRestDirs = {};
 let avatarBoneTargetQuats = {};
 
-const MIRROR_AVATAR = true;
 const LOCK_HEAD_FORWARD = true;
 const BONE_SMOOTH_FACTOR = 0.2; // 0..1, higher is faster
 
@@ -196,12 +195,9 @@ function computeRestDirection(bone, normName) {
 
 function computeDirection(from, to) {
   if (!isConfident(from) || !isConfident(to)) return null;
-  let dx = to.x - from.x;
-  let dy = -(to.y - from.y);
+  const dx = to.x - from.x;
+  const dy = -(to.y - from.y);
   const dz = 0;
-  if (MIRROR_AVATAR) {
-    dx *= -1;
-  }
   const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
   if (len < 0.001) return null;
   return { x: dx / len, y: dy / len, z: dz / len };

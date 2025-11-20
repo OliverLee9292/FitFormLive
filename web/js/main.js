@@ -129,6 +129,10 @@ function handleRepCounted(rep) {
   playCountTTS(rep);
 }
 
+const FULL_BODY_REQUIRED_FRAMES = 2;
+const FULL_BODY_STABLE_MAX = 60;
+const FULL_BODY_LOSS_GRACE_MS = 3500;
+
 function handleFullBodyState(keypoints) {
   if (state.currentMode !== "avatar") {
     state.fullBodyDetected = false;
@@ -141,11 +145,15 @@ function handleFullBodyState(keypoints) {
   const now = performance.now();
   const rawVisible = isFullBodyVisible(keypoints);
   if (rawVisible) {
-    state.fullBodyStableFrames = Math.min(state.fullBodyStableFrames + 1, 60);
+    state.fullBodyStableFrames = Math.min(
+      state.fullBodyStableFrames + 1,
+      FULL_BODY_STABLE_MAX
+    );
+    state.lastFullBodyTime = now;
   } else {
-    state.fullBodyStableFrames = 0;
+    state.fullBodyStableFrames = Math.max(state.fullBodyStableFrames - 1, 0);
   }
-  const visible = rawVisible && state.fullBodyStableFrames >= 4;
+  const visible = rawVisible && state.fullBodyStableFrames >= FULL_BODY_REQUIRED_FRAMES;
 
   if (visible) {
     state.fullBodyDetected = true;
@@ -184,7 +192,7 @@ function handleFullBodyState(keypoints) {
 
   if (state.workoutStarted && !state.countdownActive) {
     const elapsed = now - state.lastFullBodyTime;
-    if (!state.workoutPausedForNoBody && elapsed > 1500) {
+    if (!state.workoutPausedForNoBody && elapsed > FULL_BODY_LOSS_GRACE_MS) {
       state.workoutPausedForNoBody = true;
       playAvatarPhrase(
         "avatar_lost",
