@@ -145,10 +145,7 @@ function handleFullBodyState(keypoints) {
   const now = performance.now();
   const rawVisible = isFullBodyVisible(keypoints);
   if (rawVisible) {
-    state.fullBodyStableFrames = Math.min(
-      state.fullBodyStableFrames + 1,
-      FULL_BODY_STABLE_MAX
-    );
+    state.fullBodyStableFrames = Math.min(state.fullBodyStableFrames + 1, FULL_BODY_STABLE_MAX);
     state.lastFullBodyTime = now;
   } else {
     state.fullBodyStableFrames = Math.max(state.fullBodyStableFrames - 1, 0);
