@@ -1,6 +1,5 @@
 # FIT FORM LIVE
 
-MyPT Azure – On-device Pose Demo.  
 Camera-based personal training experience built for Microsoft AI School project team 7.
 
 ## Features
