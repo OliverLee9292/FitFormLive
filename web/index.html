@@ -73,6 +73,7 @@
 
                 <div style="display: flex; gap: 8px; align-items: center;">
                   <button id="toggle-overlay" class="btn secondary">포즈선 끄기</button>
+                  <button id="toggle-avatar-view" class="btn secondary" style="display:none;">카메라 보기</button>
                   <button id="toggle-camera" class="btn">카메라 시작</button>
                 </div>
               </div>
@@ -101,7 +102,7 @@
                   id="avatar-container"
                   style="position:absolute; inset:0; width:100%; height:100%; background:#0f172a; border-radius:12px; overflow:hidden; display:none;"
                 >
-                  <div id="avatar-warning" style="position:absolute; inset:0; display:none; align-items:center; justify-content:center; font-size:18px; color:#e5e7eb; background:rgba(15,23,42,0.6); text-align:center; padding:16px;">
+                  <div id="avatar-warning" style="position:absolute; inset:0; display:none; align-items:center; justify-content:center; font-size:18px; color:#e5e7eb; background:rgba(15,23,42,0.6); text-align:center; padding:16px; z-index:5;">
                     전신이 화면에 모두 들어오도록<br />카메라와 충분한 거리를 두어주세요.
                   </div>
                 </div>

@@ -18,12 +18,49 @@ export const KEY = {
   rightAnkle: 16,
 };
 
+export const KEY_BP = {
+  nose: 0,
+  leftEyeInner: 1,
+  leftEye: 2,
+  leftEyeOuter: 3,
+  rightEyeInner: 4,
+  rightEye: 5,
+  rightEyeOuter: 6,
+  leftEar: 7,
+  rightEar: 8,
+  mouthLeft: 9,
+  mouthRight: 10,
+  leftShoulder: 11,
+  rightShoulder: 12,
+  leftElbow: 13,
+  rightElbow: 14,
+  leftWrist: 15,
+  rightWrist: 16,
+  leftPinky: 17,
+  rightPinky: 18,
+  leftIndex: 19,
+  rightIndex: 20,
+  leftThumb: 21,
+  rightThumb: 22,
+  leftHip: 23,
+  rightHip: 24,
+  leftKnee: 25,
+  rightKnee: 26,
+  leftAnkle: 27,
+  rightAnkle: 28,
+  leftHeel: 29,
+  rightHeel: 30,
+  leftFootIndex: 31,
+  rightFootIndex: 32,
+};
+
 const baseExercises = {
   right_curl: {
     name: "Right Arm Curl",
     type: "기구운동",
     shortDesc: "오른팔로 덤벨을 들어 이두근을 집중적으로 단련합니다.",
     angleJoints: [KEY.rightShoulder, KEY.rightElbow, KEY.rightWrist],
+    angleJointsBP: [KEY_BP.rightShoulder, KEY_BP.rightElbow, KEY_BP.rightWrist],
     thresholds: { up: 155, down: 60 },
     start: {
       hint: "오른팔을 옆으로 내려 완전히 편 상태로 덤벨을 들고 서세요.",
@@ -58,6 +95,7 @@ const baseExercises = {
     type: "기구운동",
     shortDesc: "왼팔 이두근을 강화하는 단일 관절 덤벨 운동입니다.",
     angleJoints: [KEY.leftShoulder, KEY.leftElbow, KEY.leftWrist],
+    angleJointsBP: [KEY_BP.leftShoulder, KEY_BP.leftElbow, KEY_BP.leftWrist],
     thresholds: { up: 155, down: 60 },
     start: {
       hint: "왼팔을 옆으로 내려 완전히 편 상태로 덤벨을 들고 서세요.",
@@ -92,6 +130,7 @@ const baseExercises = {
     type: "맨몸운동",
     shortDesc: "하체 전반과 코어를 동시에 사용하는 대표적인 맨몸 스쿼트입니다.",
     angleJoints: [KEY.leftHip, KEY.leftKnee, KEY.leftAnkle],
+    angleJointsBP: [KEY_BP.leftHip, KEY_BP.leftKnee, KEY_BP.leftAnkle],
     thresholds: { up: 165, down: 100 },
     qualityTargets: {
       primary: [
@@ -163,6 +202,7 @@ const baseExercises = {
     type: "맨몸운동",
     shortDesc: "오른발을 내딛으며 하체 균형과 근력을 기르는 런지 동작입니다.",
     angleJoints: [KEY.rightHip, KEY.rightKnee, KEY.rightAnkle],
+    angleJointsBP: [KEY_BP.rightHip, KEY_BP.rightKnee, KEY_BP.rightAnkle],
     thresholds: { up: 165, down: 95 },
     start: {
       hint: "오른발을 앞으로 내딛고 상체를 세운 상태로 준비하세요.",
@@ -204,6 +244,7 @@ const baseExercises = {
     type: "맨몸운동",
     shortDesc: "왼발을 내딛으며 하체 균형과 근력을 기르는 런지 동작입니다.",
     angleJoints: [KEY.leftHip, KEY.leftKnee, KEY.leftAnkle],
+    angleJointsBP: [KEY_BP.leftHip, KEY_BP.leftKnee, KEY_BP.leftAnkle],
     thresholds: { up: 165, down: 95 },
     start: {
       hint: "왼발을 앞으로 내딛고 상체를 세운 상태로 준비하세요.",
@@ -245,6 +286,7 @@ const baseExercises = {
     type: "맨몸운동",
     shortDesc: "가슴, 어깨, 삼두근을 동시에 사용하는 대표적인 푸시업 동작입니다.",
     angleJoints: [KEY.rightShoulder, KEY.rightElbow, KEY.rightWrist],
+    angleJointsBP: [KEY_BP.rightShoulder, KEY_BP.rightElbow, KEY_BP.rightWrist],
     thresholds: { up: 165, down: 80 },
     qualityTargets: {
       primary: [
@@ -309,6 +351,7 @@ const baseExercises = {
     type: "기구운동",
     shortDesc: "덤벨을 위로 밀어 올리며 어깨와 상체를 강화하는 운동입니다.",
     angleJoints: [KEY.rightShoulder, KEY.rightElbow, KEY.rightWrist],
+    angleJointsBP: [KEY_BP.rightShoulder, KEY_BP.rightElbow, KEY_BP.rightWrist],
     thresholds: { up: 160, down: 90 },
     qualityTargets: {
       primary: [
@@ -384,9 +427,11 @@ export const state = {
   lastFrameTime: timeNow,
   running: false,
   detector: null,
+  detectorType: "movenet",
   animationId: null,
   stream: null,
   showSkeleton: true,
+  avatarViewMode: "avatar",
   workoutStarted: false,
   startStableFrames: 0,
   downStableFrames: 0,
@@ -428,6 +473,7 @@ export function resetCounter(options = {}) {
 }
 
 export function isStartReady(exercise, angle, keypoints) {
+  if (angle == null || Number.isNaN(angle)) return false;
   if (exercise.start && typeof exercise.start.check === "function") {
     return exercise.start.check(angle, keypoints);
   }
@@ -435,6 +481,7 @@ export function isStartReady(exercise, angle, keypoints) {
 }
 
 export function updateRepsForExercise(exercise, angle) {
+  if (angle == null || Number.isNaN(angle)) return false;
   const { up, down } = exercise.thresholds;
 
   if (angle <= down) {
@@ -494,36 +541,45 @@ export function setCurrentExercise(key) {
 
 const MIN_JOINT_SCORE = 0.3;
 
-function jointsVisible(keypoints, joints) {
+function jointsVisible(keypoints, keypoints3D, joints) {
   return joints.every((idx) => {
-    const kp = keypoints?.[idx];
-    return kp && kp.score != null && kp.score >= MIN_JOINT_SCORE;
+    const kp3 = keypoints3D?.[idx];
+    const kp2 = keypoints?.[idx];
+    const score = kp3?.score ?? kp2?.score ?? 0;
+    return score >= MIN_JOINT_SCORE;
   });
 }
 
-function computeAngleFromKeypoints(keypoints, joints) {
+function computeAngleFromKeypoints(keypoints, keypoints3D, joints) {
   if (!Array.isArray(joints) || joints.length !== 3) return null;
-  if (!jointsVisible(keypoints, joints)) return null;
+  if (!jointsVisible(keypoints, keypoints3D, joints)) return null;
   const [aIdx, bIdx, cIdx] = joints;
-  const a = keypoints[aIdx];
-  const b = keypoints[bIdx];
-  const c = keypoints[cIdx];
-  const abx = a.x - b.x;
-  const aby = a.y - b.y;
-  const cbx = c.x - b.x;
-  const cby = c.y - b.y;
-  const dot = abx * cbx + aby * cby;
-  const magAB = Math.hypot(abx, aby);
-  const magCB = Math.hypot(cbx, cby);
+  const a3 = keypoints3D?.[aIdx];
+  const b3 = keypoints3D?.[bIdx];
+  const c3 = keypoints3D?.[cIdx];
+  const use3d = a3 || b3 || c3;
+  const a = use3d ? a3 : keypoints[aIdx];
+  const b = use3d ? b3 : keypoints[bIdx];
+  const c = use3d ? c3 : keypoints[cIdx];
+  if (!a || !b || !c) return null;
+  const abx = (a.x ?? 0) - (b.x ?? 0);
+  const aby = (a.y ?? 0) - (b.y ?? 0);
+  const abz = use3d ? (a.z ?? 0) - (b.z ?? 0) : 0;
+  const cbx = (c.x ?? 0) - (b.x ?? 0);
+  const cby = (c.y ?? 0) - (b.y ?? 0);
+  const cbz = use3d ? (c.z ?? 0) - (b.z ?? 0) : 0;
+  const dot = abx * cbx + aby * cby + abz * cbz;
+  const magAB = Math.hypot(abx, aby, abz);
+  const magCB = Math.hypot(cbx, cby, cbz);
   if (!magAB || !magCB) return null;
   const cosine = dot / (magAB * magCB);
   const clamped = Math.min(Math.max(cosine, -1), 1);
   return (Math.acos(clamped) * 180) / Math.PI;
 }
 
-function mapTargets(targets = [], keypoints) {
+function mapTargets(targets = [], keypoints, keypoints3D) {
   return targets.map((target) => {
-    const angle = computeAngleFromKeypoints(keypoints, target.joints);
+    const angle = computeAngleFromKeypoints(keypoints, keypoints3D, target.joints);
     return {
       ...target,
       angle,
@@ -532,12 +588,12 @@ function mapTargets(targets = [], keypoints) {
   });
 }
 
-export function captureQualityTargets(exerciseKey, keypoints) {
+export function captureQualityTargets(exerciseKey, keypoints, keypoints3D) {
   const exercise = EXERCISES[exerciseKey];
   if (!exercise || !exercise.qualityTargets) return null;
   return {
-    primary: mapTargets(exercise.qualityTargets.primary || [], keypoints),
-    secondary: mapTargets(exercise.qualityTargets.secondary || [], keypoints),
+    primary: mapTargets(exercise.qualityTargets.primary || [], keypoints, keypoints3D),
+    secondary: mapTargets(exercise.qualityTargets.secondary || [], keypoints, keypoints3D),
   };
 }
 

@@ -8,13 +8,22 @@ import {
   buildSummary,
   setCurrentExercise,
 } from "./workout.js";
-import { createDetector, toVec2, angleBetween, drawSkeleton, isFullBodyVisible } from "./pose.js";
+import {
+  createDetector,
+  drawSkeleton,
+  isFullBodyVisible,
+  normalizeKeypoints,
+  DETECTOR_TYPES,
+  computeJointAngle,
+} from "./pose.js";
 import {
   initAvatar,
   startAvatarAnimation,
   stopAvatarAnimation,
   loadAvatarModel,
   updateAvatarFromPose,
+  setAvatarExerciseKey,
+  resizeAvatarRenderer,
 } from "./avatar.js";
 import { renderExercisePicker, updateHud, showSummaryOverlay, hideSummaryOverlay, setActiveMenu } from "./ui.js";
 import { setChallengeDuration, startChallengeTimer, updateChallengeTimer, resetChallenge } from "./challenge.js";
@@ -32,6 +41,7 @@ const statusLabel = document.getElementById("status-label");
 const statusDetail = document.getElementById("status-detail");
 const toggleCameraBtn = document.getElementById("toggle-camera");
 const toggleOverlayBtn = document.getElementById("toggle-overlay");
+const toggleAvatarViewBtn = document.getElementById("toggle-avatar-view");
 const resetBtn = document.getElementById("reset-btn");
 const startWorkoutBtn = document.getElementById("start-workout-btn");
 const countdownEl = document.getElementById("countdown-overlay");
@@ -44,6 +54,7 @@ const openExercisePickerBtn = document.getElementById("open-exercise-picker");
 const avatarStyleWrapper = document.getElementById("avatar-style-wrapper");
 const avatarStyleSelect = document.getElementById("avatar-style-select");
 const avatarWarningEl = document.getElementById("avatar-warning");
+const modelLabelEl = document.getElementById("model-label");
 const avatarContainer = document.getElementById("avatar-container");
 const cameraLayer = document.getElementById("camera-layer");
 const challengeRemainingEl = document.getElementById("challenge-remaining");
@@ -70,6 +81,12 @@ const uiTargets = {
   statusDetail,
   statusDot,
 };
+
+function applyMirror(useMirror) {
+  const scale = useMirror ? "scaleX(-1)" : "scaleX(1)";
+  if (videoEl) videoEl.style.transform = scale;
+  if (canvasEl) canvasEl.style.transform = scale;
+}
 
 function updateCurrentExerciseLabel() {
   const ex = EXERCISES[state.currentKey];
@@ -99,6 +116,7 @@ function closeExercisePicker() {
 function selectExerciseAndStart(key) {
   if (!EXERCISES[key]) return;
   setCurrentExercise(key);
+  setAvatarExerciseKey(key);
   resetCounter();
   state.workoutStarted = false;
   state.stage = "up";
@@ -132,6 +150,70 @@ function handleRepCounted(rep) {
 const FULL_BODY_REQUIRED_FRAMES = 2;
 const FULL_BODY_STABLE_MAX = 60;
 const FULL_BODY_LOSS_GRACE_MS = 3500;
+
+function getDesiredDetectorType() {
+  return state.currentMode === "avatar" ? DETECTOR_TYPES.BLAZEPOSE : DETECTOR_TYPES.MOVENET;
+}
+
+function setModelLabel(type) {
+  if (!modelLabelEl) return;
+  if (type === DETECTOR_TYPES.BLAZEPOSE) {
+    modelLabelEl.textContent = "BlazePose GHUM 3D · On-device";
+  } else {
+    modelLabelEl.textContent = "MoveNet Lightning · On-device";
+  }
+}
+
+function applyAvatarViewMode(mode) {
+  state.avatarViewMode = mode;
+  if (mode === "camera") {
+    if (avatarContainer) avatarContainer.style.display = "none";
+    if (cameraLayer) cameraLayer.style.display = "block";
+    state.showSkeleton = true;
+    applyMirror(false);
+    if (toggleOverlayBtn) {
+      toggleOverlayBtn.style.display = "inline-flex";
+      toggleOverlayBtn.textContent = state.showSkeleton ? "포즈선 끄기" : "포즈선 켜기";
+    }
+    if (toggleAvatarViewBtn) toggleAvatarViewBtn.textContent = "아바타 보기";
+    if (avatarWarningEl) avatarWarningEl.style.display = "none";
+  } else {
+    if (avatarContainer) avatarContainer.style.display = "block";
+    if (cameraLayer) cameraLayer.style.display = "none";
+    state.showSkeleton = true; // 카메라층은 숨기지만 포즈선 계산은 유지
+    applyMirror(true);
+    if (toggleOverlayBtn) {
+      toggleOverlayBtn.style.display = "none";
+      toggleOverlayBtn.textContent = state.showSkeleton ? "포즈선 끄기" : "포즈선 켜기";
+    }
+    if (toggleAvatarViewBtn) toggleAvatarViewBtn.textContent = "카메라 보기";
+    if (avatarWarningEl) avatarWarningEl.style.display = "flex";
+    if (avatarContainer && window.__avatarInitialized) {
+      resizeAvatarRenderer(avatarContainer);
+    }
+    ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+  }
+}
+
+async function ensureDetectorForMode() {
+  const desired = getDesiredDetectorType();
+  if (state.detector && state.detectorType === desired) {
+    return state.detector;
+  }
+  const previous = state.detector;
+  const newDetector = await createDetector(desired);
+  if (previous && typeof previous.dispose === "function") {
+    try {
+      previous.dispose();
+    } catch (e) {
+      console.warn("Detector dispose failed", e);
+    }
+  }
+  state.detector = newDetector;
+  state.detectorType = desired;
+  setModelLabel(desired);
+  return state.detector;
+}
 
 function handleFullBodyState(keypoints) {
   if (state.currentMode !== "avatar") {
@@ -209,61 +291,100 @@ async function renderLoop() {
 
   const poses = await state.detector.estimatePoses(videoEl, {
     maxPoses: 1,
-    flipHorizontal: true,
+    flipHorizontal: !(state.currentMode === "avatar" && state.avatarViewMode === "camera"),
   });
 
   if (poses.length > 0) {
-    const kp = poses[0].keypoints;
+    const { keypoints: kp, keypoints3D, keypoints33, keypoints3D33 } = normalizeKeypoints(
+      poses[0],
+      state.detectorType
+    );
     handleFullBodyState(kp);
     const ex = EXERCISES[state.currentKey];
-    const [ia, ib, ic] = ex.angleJoints;
-    const a = toVec2(kp[ia]);
-    const b = toVec2(kp[ib]);
-    const c = toVec2(kp[ic]);
-    const angle = angleBetween(a, b, c);
-    state.lastAngle = angle;
+    const useAvatar = state.currentMode === "avatar";
+    const keypointsForLogic = useAvatar ? keypoints33 : kp;
+    const keypoints3DForLogic = useAvatar ? keypoints3D33 : keypoints3D;
+    const joints = useAvatar && ex.angleJointsBP ? ex.angleJointsBP : ex.angleJoints;
+    const drawPoints = useAvatar ? keypoints33 : kp;
+    const [ia, ib, ic] = joints;
+    const angle = computeJointAngle(keypointsForLogic, keypoints3DForLogic, ia, ib, ic);
+    state.lastAngle = angle ?? 0;
+    const angleForHud = angle ?? 0;
 
     if (state.isAvatarMode && state.fullBodyDetected) {
-      updateAvatarFromPose(kp);
+      updateAvatarFromPose(keypoints33, keypoints3D33);
     }
 
     if (!state.workoutStarted) {
-      const ok = isStartReady(ex, angle, kp);
+      const ok = angle != null ? isStartReady(ex, angle, kp) : false;
       state.startStableFrames = ok ? state.startStableFrames + 1 : 0;
-      drawSkeleton({ ctx, canvasEl, videoEl, keypoints: kp, showSkeleton: state.showSkeleton });
+      drawSkeleton({
+        ctx,
+        canvasEl,
+        videoEl,
+        keypoints: drawPoints,
+        showSkeleton:
+          state.currentMode === "avatar"
+            ? state.showSkeleton && state.avatarViewMode === "camera"
+            : state.showSkeleton,
+      });
       updateHud(uiTargets, {
         reps: state.reps,
-        angle,
+        angle: angleForHud,
         fps: state.fps,
-        label: ok ? "Hold start position" : "Set start position",
-        detail: ex.start?.hint || "준비자세를 맞춰 주세요. (정면을 보고 화면 중앙에 서세요.)",
+        label: angle == null ? "Detecting pose" : ok ? "Hold start position" : "Set start position",
+        detail:
+          angle == null
+            ? "관절 포인트를 인식 중입니다. 전신이 보이도록 한 걸음 물러서 주세요."
+            : ex.start?.hint || "준비자세를 맞춰 주세요. (정면을 보고 화면 중앙에 서세요.)",
         good: ok,
       });
     } else if (state.currentMode === "avatar" && state.workoutPausedForNoBody) {
-      drawSkeleton({ ctx, canvasEl, videoEl, keypoints: kp, showSkeleton: state.showSkeleton });
+      drawSkeleton({
+        ctx,
+        canvasEl,
+        videoEl,
+        keypoints: drawPoints,
+        showSkeleton:
+          state.currentMode === "avatar"
+            ? state.showSkeleton && state.avatarViewMode === "camera"
+            : state.showSkeleton,
+      });
       updateHud(uiTargets, {
         reps: state.reps,
-        angle,
+        angle: angleForHud,
         fps: state.fps,
         label: "전신 인식 안 됨",
         detail: "카메라와 충분한 거리를 두어 전신이 모두 보이게 서주세요.",
         good: false,
       });
     } else {
-      const counted = updateRepsForExercise(ex, angle);
+      const counted = angle != null ? updateRepsForExercise(ex, angle) : false;
       if (counted && state.reps > 0) {
         handleRepCounted(state.reps);
         if (state.currentMode !== "challenge" && state.reps >= 30 && state.workoutStarted) {
           stopWorkout(true);
         }
       }
-      const fb = ex.feedback(angle);
+      const fb =
+        angle == null
+          ? { label: "Detecting", detail: "관절을 더 명확히 보기 위해 한 걸음 물러서 주세요.", good: false }
+          : ex.feedback(angle);
       state.totalFrames += 1;
       if (fb.good) state.goodFrames += 1;
-      drawSkeleton({ ctx, canvasEl, videoEl, keypoints: kp, showSkeleton: state.showSkeleton });
+      drawSkeleton({
+        ctx,
+        canvasEl,
+        videoEl,
+        keypoints: drawPoints,
+        showSkeleton:
+          state.currentMode === "avatar"
+            ? state.showSkeleton && state.avatarViewMode === "camera"
+            : state.showSkeleton,
+      });
       updateHud(uiTargets, {
         reps: state.reps,
-        angle,
+        angle: angleForHud,
         fps: state.fps,
         label: fb.label,
         detail: fb.detail,
@@ -298,9 +419,7 @@ async function startCamera() {
     canvasEl.width = videoEl.videoWidth;
     canvasEl.height = videoEl.videoHeight;
 
-    if (!state.detector) {
-      state.detector = await createDetector();
-    }
+    await ensureDetectorForMode();
 
     state.running = true;
     state.lastFrameTime = performance.now();
@@ -323,6 +442,14 @@ function stopCamera() {
     state.stream.getTracks().forEach((track) => track.stop());
     state.stream = null;
   }
+  if (state.detector && typeof state.detector.dispose === "function") {
+    try {
+      state.detector.dispose();
+    } catch (e) {
+      console.warn("Detector dispose failed", e);
+    }
+  }
+  state.detector = null;
   ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
   toggleCameraBtn.textContent = "카메라 시작";
   toggleCameraBtn.disabled = false;
@@ -431,8 +558,12 @@ function handleMenuChange(target) {
     if (challengeView) challengeView.style.display = "none";
     state.currentMode = "training";
     state.isAvatarMode = false;
+    state.avatarViewMode = "avatar";
+    state.lastAngle = 0;
     if (avatarStyleWrapper) avatarStyleWrapper.style.display = "none";
+    if (toggleAvatarViewBtn) toggleAvatarViewBtn.style.display = "none";
     state.showSkeleton = true;
+    applyMirror(true);
     toggleOverlayBtn.style.display = "inline-flex";
     toggleOverlayBtn.textContent = "포즈선 끄기";
     if (avatarContainer) avatarContainer.style.display = "none";
@@ -447,18 +578,19 @@ function handleMenuChange(target) {
     if (challengeView) challengeView.style.display = "none";
     state.currentMode = "avatar";
     state.isAvatarMode = true;
+    state.avatarViewMode = "avatar";
+    state.lastAngle = 0;
     if (avatarStyleWrapper) avatarStyleWrapper.style.display = "block";
-    state.showSkeleton = false;
-    toggleOverlayBtn.style.display = "none";
+    state.showSkeleton = true;
+    applyMirror(false);
+    if (toggleAvatarViewBtn) toggleAvatarViewBtn.style.display = "inline-flex";
     if (avatarContainer) {
-      avatarContainer.style.display = "block";
-      if (cameraLayer) cameraLayer.style.display = "none";
       avatarContainer.style.borderRadius = "18px";
       avatarContainer.style.inset = "0";
       avatarContainer.style.width = "100%";
       avatarContainer.style.height = "100%";
     }
-    if (avatarWarningEl) avatarWarningEl.style.display = "flex";
+    applyAvatarViewMode("avatar");
     state.fullBodyDetected = false;
     state.workoutPausedForNoBody = false;
     state.waitingForFullBodyStart = false;
@@ -476,8 +608,12 @@ function handleMenuChange(target) {
     devView.style.display = "none";
     state.currentMode = "challenge";
     state.isAvatarMode = false;
+    state.avatarViewMode = "avatar";
+    state.lastAngle = 0;
     if (avatarStyleWrapper) avatarStyleWrapper.style.display = "none";
+    if (toggleAvatarViewBtn) toggleAvatarViewBtn.style.display = "none";
     state.showSkeleton = true;
+    applyMirror(true);
     toggleOverlayBtn.style.display = "inline-flex";
     toggleOverlayBtn.textContent = "포즈선 끄기";
     if (avatarContainer) avatarContainer.style.display = "none";
@@ -492,10 +628,19 @@ function handleMenuChange(target) {
     if (challengeView) challengeView.style.display = "none";
     state.currentMode = "dev";
     state.isAvatarMode = false;
+    state.avatarViewMode = "avatar";
+    state.lastAngle = 0;
     if (avatarStyleWrapper) avatarStyleWrapper.style.display = "none";
+    if (toggleAvatarViewBtn) toggleAvatarViewBtn.style.display = "none";
     stopAvatarAnimation();
     resetChallenge(challengeRemainingEl);
     if (startWorkoutBtn) startWorkoutBtn.textContent = "운동 시작";
+    applyMirror(true);
+  }
+  setModelLabel(getDesiredDetectorType());
+  if (state.running) {
+    stopCamera();
+    startCamera();
   }
   setActiveMenu(menuButtons, target);
 }
@@ -534,6 +679,10 @@ function initEventListeners() {
     }
 
     if (state.currentMode === "avatar") {
+      if (state.fullBodyDetected) {
+        startCountdownAndWorkout();
+        return;
+      }
       state.waitingForFullBodyStart = true;
       state.workoutPausedForNoBody = false;
       state.fullBodyDetected = false;
@@ -564,13 +713,21 @@ function initEventListeners() {
   }
 
   if (avatarStyleSelect) {
-    avatarStyleSelect.addEventListener("change", (e) => {
-      const value = e.target.value;
-      if (!window.__avatarInitialized) {
-        initAvatar(avatarContainer);
-        window.__avatarInitialized = true;
-      }
-      loadAvatarModel(value);
+  avatarStyleSelect.addEventListener("change", (e) => {
+    const value = e.target.value;
+    if (!window.__avatarInitialized) {
+      initAvatar(avatarContainer);
+      window.__avatarInitialized = true;
+    }
+    loadAvatarModel(value);
+  });
+  }
+
+  if (toggleAvatarViewBtn) {
+    toggleAvatarViewBtn.addEventListener("click", () => {
+      if (state.currentMode !== "avatar") return;
+      const next = state.avatarViewMode === "avatar" ? "camera" : "avatar";
+      applyAvatarViewMode(next);
     });
   }
 
@@ -594,6 +751,8 @@ function initEventListeners() {
 
 function init() {
   initSpeechOnce();
+  setAvatarExerciseKey(state.currentKey);
+  setModelLabel(getDesiredDetectorType());
   updateCurrentExerciseLabel();
   if (hudExercise) {
     hudExercise.textContent = EXERCISES[state.currentKey].name;

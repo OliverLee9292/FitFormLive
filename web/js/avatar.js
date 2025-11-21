@@ -1,27 +1,61 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { KEY } from "./workout.js";
 
 export const AVATAR_MODELS = {
   basic: "models/basic.glb",
   cute: "models/cute.glb",
 };
 
-let avatarScene = null;
-let avatarCamera = null;
-let avatarRenderer = null;
-let avatarModel = null;
-let avatarBoneMap = {};
-let avatarAnimationId = null;
-let avatarLoadToken = 0;
-let avatarBoneRestQuats = {};
-let avatarBoneRestDirs = {};
-let avatarBoneTargetQuats = {};
+// BlazePose 33 포인트 인덱스
+const BP = {
+  nose: 0,
+  leftEyeInner: 1,
+  leftEye: 2,
+  leftEyeOuter: 3,
+  rightEyeInner: 4,
+  rightEye: 5,
+  rightEyeOuter: 6,
+  leftEar: 7,
+  rightEar: 8,
+  mouthLeft: 9,
+  mouthRight: 10,
+  leftShoulder: 11,
+  rightShoulder: 12,
+  leftElbow: 13,
+  rightElbow: 14,
+  leftWrist: 15,
+  rightWrist: 16,
+  leftPinky: 17,
+  rightPinky: 18,
+  leftIndex: 19,
+  rightIndex: 20,
+  leftThumb: 21,
+  rightThumb: 22,
+  leftHip: 23,
+  rightHip: 24,
+  leftKnee: 25,
+  rightKnee: 26,
+  leftAnkle: 27,
+  rightAnkle: 28,
+  leftHeel: 29,
+  rightHeel: 30,
+  leftFootIndex: 31,
+  rightFootIndex: 32,
+};
 
-const LOCK_HEAD_FORWARD = true;
-const BONE_SMOOTH_FACTOR = 0.2; // 0..1, higher is faster
+const BONE_MAPPINGS = [
+  { bone: "mixamorigRightArm", from: BP.rightShoulder, to: BP.rightElbow },
+  { bone: "mixamorigRightForeArm", from: BP.rightElbow, to: BP.rightWrist },
+  { bone: "mixamorigLeftArm", from: BP.leftShoulder, to: BP.leftElbow },
+  { bone: "mixamorigLeftForeArm", from: BP.leftElbow, to: BP.leftWrist },
+  { bone: "mixamorigRightUpLeg", from: BP.rightHip, to: BP.rightKnee },
+  { bone: "mixamorigRightLeg", from: BP.rightKnee, to: BP.rightAnkle },
+  { bone: "mixamorigLeftUpLeg", from: BP.leftHip, to: BP.leftKnee },
+  { bone: "mixamorigLeftLeg", from: BP.leftKnee, to: BP.leftAnkle },
+  { bone: "mixamorigSpine2", from: "midHip", to: "midShoulder" },
+];
 
-const DEFAULT_DIRECTIONS = {
+const FALLBACK_REST_AXES = {
   rightarm: new THREE.Vector3(1, 0, 0),
   rightforearm: new THREE.Vector3(1, 0, 0),
   leftarm: new THREE.Vector3(-1, 0, 0),
@@ -35,150 +69,38 @@ const DEFAULT_DIRECTIONS = {
   head: new THREE.Vector3(0, 1, 0),
 };
 
-export function initAvatar(container) {
-  if (!container || avatarRenderer) return;
+const BONE_SMOOTH = 0.35;
+const TARGET_HEIGHT = 1.55;
 
-  avatarScene = new THREE.Scene();
-  const aspect = container.clientWidth / container.clientHeight || 1;
-  avatarCamera = new THREE.PerspectiveCamera(75, aspect, 0.1, 1000);
-  avatarCamera.position.z = 800;
-  avatarCamera.position.y = 500;
-
-  avatarRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  avatarRenderer.setSize(container.clientWidth, container.clientHeight);
-  avatarRenderer.setPixelRatio(window.devicePixelRatio || 1);
-  container.appendChild(avatarRenderer.domElement);
-
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-  avatarScene.add(ambientLight);
-  const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-  directionalLight.position.set(1, 1, 1);
-  avatarScene.add(directionalLight);
-
-  loadAvatarModel("basic");
-}
-
-export function startAvatarAnimation() {
-  if (!avatarRenderer || avatarAnimationId) return;
-  const animate = () => {
-    avatarAnimationId = requestAnimationFrame(animate);
-    if (avatarRenderer && avatarScene && avatarCamera) {
-      avatarRenderer.render(avatarScene, avatarCamera);
-    }
-  };
-  animate();
-}
-
-export function stopAvatarAnimation() {
-  if (avatarAnimationId) {
-    cancelAnimationFrame(avatarAnimationId);
-    avatarAnimationId = null;
-  }
-}
-
-export function resizeAvatarRenderer(container) {
-  if (!avatarRenderer || !avatarCamera || !container) return;
-  avatarRenderer.setSize(container.clientWidth, container.clientHeight);
-  avatarCamera.aspect = container.clientWidth / container.clientHeight;
-  avatarCamera.updateProjectionMatrix();
-}
-
-export function loadAvatarModel(name) {
-  const url = AVATAR_MODELS[name] || AVATAR_MODELS.basic;
-  if (!url) return;
-
-  const loader = new GLTFLoader();
-  const requestId = ++avatarLoadToken;
-
-  if (avatarModel && avatarScene) {
-    avatarScene.remove(avatarModel);
-  }
-  avatarModel = null;
-  avatarBoneMap = {};
-  avatarBoneRestQuats = {};
-  avatarBoneRestDirs = {};
-  avatarBoneTargetQuats = {};
-
-  loader.load(
-    url,
-    (gltf) => {
-      if (requestId !== avatarLoadToken) {
-        return;
-      }
-      avatarModel = gltf.scene;
-
-      const box = new THREE.Box3().setFromObject(avatarModel);
-      const size = box.getSize(new THREE.Vector3());
-      const center = box.getCenter(new THREE.Vector3());
-
-      avatarModel.position.x -= center.x;
-      avatarModel.position.z -= center.z;
-      avatarModel.position.y -= box.min.y;
-
-      const desiredHeight = 1.7;
-      const scale = desiredHeight / (size.y || 1);
-      if (isFinite(scale) && scale > 0) {
-        avatarModel.scale.set(scale, scale, scale);
-      }
-
-      avatarScene.add(avatarModel);
-      avatarModel.updateMatrixWorld(true);
-      cacheBoneData(avatarModel);
-
-      if (avatarCamera) {
-        const newBox = new THREE.Box3().setFromObject(avatarModel);
-        const newSize = newBox.getSize(new THREE.Vector3());
-        const newCenter = newBox.getCenter(new THREE.Vector3());
-        const maxDim = Math.max(newSize.y, newSize.x);
-        const fovRad = (avatarCamera.fov * Math.PI) / 180;
-        let distance = (maxDim / 2) / Math.tan(fovRad / 2);
-        distance *= 10;
-        const targetY = newCenter.y + newSize.y * 0.05;
-        avatarCamera.position.set(
-          newCenter.x,
-          targetY + newSize.y * 2,
-          distance
-        );
-        avatarCamera.lookAt(newCenter.x, targetY + newSize.y * 2, newCenter.z);
-      }
-    },
-    undefined,
-    (error) => {
-      console.error("Avatar GLB 로딩 실패:", error);
-    }
-  );
-}
-
-function isConfident(kp) {
-  return kp && kp.score >= 0.3;
-}
+let scene = null;
+let camera = null;
+let renderer = null;
+let model = null;
+let animationId = null;
+let loadToken = 0;
+let boneMap = {};
+let boneRestQuat = {};
+let boneRestDir = {};
 
 function normalizeBoneName(name) {
-  return (name || "")
-    .toLowerCase()
-    .replace(/mixamorig|armature|_| |\./g, "");
+  return (name || "").toLowerCase().replace(/mixamorig|armature|_| |\./g, "");
 }
 
-function getDefaultDirection(normName) {
-  const vec = DEFAULT_DIRECTIONS[normName];
-  return vec ? vec.clone() : new THREE.Vector3(0, 1, 0);
-}
-
-function cacheBoneData(root) {
-  if (!root) return;
-  root.updateMatrixWorld(true);
+function cacheRestData(root) {
+  boneMap = {};
+  boneRestQuat = {};
+  boneRestDir = {};
   root.traverse((obj) => {
     if (!obj.isBone) return;
     const norm = normalizeBoneName(obj.name);
-    if (!norm) return;
-    avatarBoneMap[norm] = obj;
-    avatarBoneRestQuats[norm] = obj.quaternion.clone();
-    const restDir = computeRestDirection(obj, norm);
-    avatarBoneRestDirs[norm] = restDir;
+    boneMap[norm] = obj;
+    boneRestQuat[norm] = obj.quaternion.clone();
+    const dir = firstChildDir(obj);
+    if (dir) boneRestDir[norm] = dir;
   });
 }
 
-function computeRestDirection(bone, normName) {
+function firstChildDir(bone) {
   const origin = new THREE.Vector3();
   const childPos = new THREE.Vector3();
   bone.getWorldPosition(origin);
@@ -186,143 +108,206 @@ function computeRestDirection(bone, normName) {
     if (!child.isBone) continue;
     child.getWorldPosition(childPos);
     const dir = childPos.clone().sub(origin);
-    if (dir.lengthSq() > 1e-6) {
-      return dir.normalize();
-    }
+    if (dir.lengthSq() > 1e-6) return dir.normalize();
   }
-  return getDefaultDirection(normName);
-}
-
-function computeDirection(from, to) {
-  if (!isConfident(from) || !isConfident(to)) return null;
-  const dx = to.x - from.x;
-  const dy = -(to.y - from.y);
-  const dz = 0;
-  const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
-  if (len < 0.001) return null;
-  return { x: dx / len, y: dy / len, z: dz / len };
+  return null;
 }
 
 function findBone(name) {
-  if (!avatarModel) return null;
   const norm = normalizeBoneName(name);
-  if (avatarBoneMap[norm]) return avatarBoneMap[norm];
-  let found = null;
-  avatarModel.traverse((child) => {
-    if (!child.isBone) return;
-    const childNorm = normalizeBoneName(child.name);
-    if (childNorm === norm) {
-      found = child;
-    }
-  });
-  if (found) {
-    avatarBoneMap[norm] = found;
-    if (!avatarBoneRestQuats[norm]) {
-      avatarBoneRestQuats[norm] = found.quaternion.clone();
-    }
-    if (!avatarBoneRestDirs[norm]) {
-      avatarBoneRestDirs[norm] = getDefaultDirection(norm);
-    }
-  }
-  return found;
+  return boneMap[norm] || null;
 }
 
-function rotateBone(boneName, dir) {
-  if (!dir) return;
+function getRestAxis(norm) {
+  if (boneRestDir[norm]) return boneRestDir[norm].clone();
+  if (FALLBACK_REST_AXES[norm]) return FALLBACK_REST_AXES[norm].clone();
+  return new THREE.Vector3(0, 1, 0);
+}
+
+function rotateBoneTowards(boneName, targetDir) {
+  if (!targetDir) return;
   const bone = findBone(boneName);
   if (!bone) return;
   const norm = normalizeBoneName(boneName);
-  const restQuat = (avatarBoneRestQuats[norm] || bone.quaternion).clone();
-  const restDir = (avatarBoneRestDirs[norm] || getDefaultDirection(norm)).clone();
-  const targetVec = new THREE.Vector3(dir.x, dir.y, dir.z ?? 0);
-  if (targetVec.lengthSq() < 1e-6 || restDir.lengthSq() < 1e-6) return;
-  targetVec.normalize();
-  restDir.normalize();
-  const delta = new THREE.Quaternion().setFromUnitVectors(restDir, targetVec);
-  const targetQuat = restQuat.multiply(delta);
-  avatarBoneTargetQuats[norm] = targetQuat.clone();
-  if (BONE_SMOOTH_FACTOR >= 1) {
+  const restQuat = (boneRestQuat[norm] || bone.quaternion).clone();
+  const restAxis = getRestAxis(norm);
+  if (restAxis.lengthSq() < 1e-6) return;
+
+  const from = restAxis.clone().normalize();
+  const to = new THREE.Vector3(targetDir.x, targetDir.y, targetDir.z ?? 0).normalize();
+  const delta = new THREE.Quaternion().setFromUnitVectors(from, to);
+  const targetQuat = restQuat.clone().multiply(delta);
+  if (BONE_SMOOTH >= 1) {
     bone.quaternion.copy(targetQuat);
   } else {
-    bone.quaternion.slerp(targetQuat, BONE_SMOOTH_FACTOR);
+    bone.quaternion.slerp(targetQuat, BONE_SMOOTH);
   }
 }
 
-function resetBoneToRest(boneName) {
-  const bone = findBone(boneName);
-  if (!bone) return;
-  const norm = normalizeBoneName(boneName);
-  const restQuat = avatarBoneRestQuats[norm];
-  if (restQuat) {
-    avatarBoneTargetQuats[norm] = restQuat.clone();
-    if (BONE_SMOOTH_FACTOR >= 1) {
-      bone.quaternion.copy(restQuat);
+function safeScore(kp) {
+  return kp?.score ?? kp?.visibility ?? kp?.presence ?? 0;
+}
+
+function getPoint(keypoints, idx) {
+  const kp = keypoints?.[idx];
+  if (!kp || safeScore(kp) < 0.2) return null;
+  return {
+    x: kp.x ?? 0,
+    y: -(kp.y ?? 0), // 화면 좌표를 월드 y축으로 뒤집음
+    z: kp.z ?? 0,
+  };
+}
+
+function midpoint(a, b) {
+  if (!a || !b) return null;
+  return {
+    x: (a.x + b.x) / 2,
+    y: (a.y + b.y) / 2,
+    z: (a.z + b.z) / 2,
+  };
+}
+
+function direction(from, to) {
+  if (!from || !to) return null;
+  const v = new THREE.Vector3(to.x - from.x, to.y - from.y, to.z - from.z);
+  if (v.lengthSq() < 1e-6) return null;
+  v.normalize();
+  return { x: v.x, y: v.y, z: v.z };
+}
+
+function retargetBones(keypoints) {
+  const midHip = midpoint(getPoint(keypoints, BP.leftHip), getPoint(keypoints, BP.rightHip));
+  const midShoulder = midpoint(getPoint(keypoints, BP.leftShoulder), getPoint(keypoints, BP.rightShoulder));
+
+  BONE_MAPPINGS.forEach((m) => {
+    let dir = null;
+    if (m.from === "midHip" || m.to === "midShoulder") {
+      if (midHip && midShoulder) dir = direction(midHip, midShoulder);
+    } else if (m.from === "midHip") {
+      const target = getPoint(keypoints, m.to);
+      if (midHip && target) dir = direction(midHip, target);
+    } else if (m.to === "midShoulder") {
+      const source = getPoint(keypoints, m.from);
+      if (source && midShoulder) dir = direction(source, midShoulder);
     } else {
-      bone.quaternion.slerp(restQuat, BONE_SMOOTH_FACTOR);
+      const a = getPoint(keypoints, m.from);
+      const b = getPoint(keypoints, m.to);
+      dir = direction(a, b);
     }
+    if (dir) rotateBoneTowards(m.bone, dir);
+  });
+}
+
+export function initAvatar(container) {
+  if (!container || renderer) return;
+  scene = new THREE.Scene();
+  const aspect = container.clientWidth / container.clientHeight || 1;
+  camera = new THREE.PerspectiveCamera(60, aspect, 0.1, 2000);
+  camera.position.set(0, 150, 500);
+
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setSize(container.clientWidth, container.clientHeight);
+  renderer.setPixelRatio(window.devicePixelRatio || 1);
+  renderer.domElement.style.transform = "scaleX(-1)"; // 거울 모드
+  renderer.domElement.style.transformOrigin = "center";
+  renderer.domElement.style.position = "absolute";
+  renderer.domElement.style.inset = "0";
+  renderer.domElement.style.width = "100%";
+  renderer.domElement.style.height = "100%";
+  container.appendChild(renderer.domElement);
+
+  const ambient = new THREE.AmbientLight(0xffffff, 0.7);
+  const dir = new THREE.DirectionalLight(0xffffff, 0.9);
+  dir.position.set(1, 1.5, 1);
+  scene.add(ambient, dir);
+
+  loadAvatarModel("basic");
+}
+
+export function resizeAvatarRenderer(container) {
+  if (!renderer || !camera || !container) return;
+  renderer.setSize(container.clientWidth, container.clientHeight);
+  camera.aspect = container.clientWidth / container.clientHeight;
+  camera.updateProjectionMatrix();
+}
+
+export function startAvatarAnimation() {
+  if (!renderer || animationId) return;
+  const renderLoop = () => {
+    animationId = requestAnimationFrame(renderLoop);
+    if (renderer && scene && camera) {
+      renderer.render(scene, camera);
+    }
+  };
+  renderLoop();
+}
+
+export function stopAvatarAnimation() {
+  if (animationId) {
+    cancelAnimationFrame(animationId);
+    animationId = null;
   }
 }
 
-export function updateAvatarFromPose(keypoints) {
-  if (!avatarModel || !keypoints || keypoints.length < 17) return;
+export function loadAvatarModel(name) {
+  const url = AVATAR_MODELS[name] || AVATAR_MODELS.basic;
+  if (!url) return;
+  const loader = new GLTFLoader();
+  const token = ++loadToken;
 
-  const rShoulder = keypoints[KEY.rightShoulder];
-  const rElbow = keypoints[KEY.rightElbow];
-  const rWrist = keypoints[KEY.rightWrist];
-  rotateBone("mixamorigRightArm", computeDirection(rShoulder, rElbow));
-  rotateBone("mixamorigRightForeArm", computeDirection(rElbow, rWrist));
+  loader.load(
+    url,
+    (gltf) => {
+      if (token !== loadToken) return;
+      if (model && scene) {
+        scene.remove(model);
+      }
+      model = gltf.scene || gltf.scenes?.[0];
+      if (!model) return;
 
-  const lShoulder = keypoints[KEY.leftShoulder];
-  const lElbow = keypoints[KEY.leftElbow];
-  const lWrist = keypoints[KEY.leftWrist];
-  rotateBone("mixamorigLeftArm", computeDirection(lShoulder, lElbow));
-  rotateBone("mixamorigLeftForeArm", computeDirection(lElbow, lWrist));
+      // 중앙 정렬 및 스케일
+      const box = new THREE.Box3().setFromObject(model);
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      model.position.sub(center);
+      const height = size.y || 1;
+      const scale = TARGET_HEIGHT / height;
+      model.scale.setScalar(scale);
+      // align pelvis (약 35% 지점) to world origin then push it further downward
+      const pelvisApprox = (box.min.y + height * 0.35) * scale;
+      model.position.y -= pelvisApprox;
+      model.position.y -= size.y * scale * 5.25; // push further downward (50% more)
 
-  const rHip = keypoints[KEY.rightHip];
-  const rKnee = keypoints[KEY.rightKnee];
-  const rAnkle = keypoints[KEY.rightAnkle];
-  rotateBone("mixamorigRightUpLeg", computeDirection(rHip, rKnee));
-  rotateBone("mixamorigRightLeg", computeDirection(rKnee, rAnkle));
+      scene.add(model);
+      model.updateMatrixWorld(true);
+      cacheRestData(model);
 
-  const lHip = keypoints[KEY.leftHip];
-  const lKnee = keypoints[KEY.leftKnee];
-  const lAnkle = keypoints[KEY.leftAnkle];
-  rotateBone("mixamorigLeftUpLeg", computeDirection(lHip, lKnee));
-  rotateBone("mixamorigLeftLeg", computeDirection(lKnee, lAnkle));
-
-  const lShoulderKp = keypoints[KEY.leftShoulder];
-  const rShoulderKp = keypoints[KEY.rightShoulder];
-  const lHipKp = keypoints[KEY.leftHip];
-  const rHipKp = keypoints[KEY.rightHip];
-  if (
-    isConfident(lShoulderKp) &&
-    isConfident(rShoulderKp) &&
-    isConfident(lHipKp) &&
-    isConfident(rHipKp)
-  ) {
-    const spineMid = {
-      x: (lShoulderKp.x + rShoulderKp.x) / 2,
-      y: (lShoulderKp.y + rShoulderKp.y) / 2,
-    };
-    const hipMid = {
-      x: (lHipKp.x + rHipKp.x) / 2,
-      y: (lHipKp.y + rHipKp.y) / 2,
-    };
-    rotateBone("mixamorigSpine2", computeDirection(hipMid, spineMid));
-  }
-
-  if (LOCK_HEAD_FORWARD) {
-    resetBoneToRest("mixamorigHead");
-    resetBoneToRest("mixamorigNeck");
-  } else {
-    const nose = keypoints[KEY.nose];
-    const lEar = keypoints[KEY.leftEar];
-    const rEar = keypoints[KEY.rightEar];
-    const refEar = isConfident(rEar) ? rEar : lEar;
-    if (isConfident(nose) && isConfident(refEar)) {
-      const dir = computeDirection(refEar, nose);
-      rotateBone("mixamorigHead", dir);
-      rotateBone("mixamorigNeck", dir);
+      // 카메라 프레이밍
+      const newBox = new THREE.Box3().setFromObject(model);
+      const newSize = newBox.getSize(new THREE.Vector3());
+      const maxDim = Math.max(newSize.x, newSize.y);
+      const fovRad = (camera.fov * Math.PI) / 180;
+      let distance = (maxDim / 2) / Math.tan(fovRad / 2) + newSize.z * 1.2;
+      distance *= 3.0;
+      const targetY = -newSize.y * 2.25; // move camera target further below
+      camera.position.set(0, targetY + newSize.y * 0.25, distance);
+      camera.lookAt(0, targetY, 0);
+    },
+    undefined,
+    (err) => {
+      console.error("Avatar load failed", err);
     }
-  }
+  );
+}
+
+export function setAvatarExerciseKey() {
+  // no-op in simplified version
+}
+
+export function updateAvatarFromPose(keypoints33, keypoints3D33) {
+  if (!model || !Array.isArray(keypoints3D33) || keypoints3D33.length < 33) return;
+  const merged = keypoints3D33.map((kp) =>
+    kp && safeScore(kp) >= 0.2 ? { x: kp.x, y: kp.y, z: kp.z, score: safeScore(kp) } : null
+  );
+  retargetBones(merged);
 }
