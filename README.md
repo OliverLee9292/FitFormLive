@@ -6,11 +6,12 @@ Camera-based personal training experience built for Microsoft AI School project 
 
 ## Features
 
-- **MoveNet-based pose tracking** with rep counting and feedback for curls, squats, lunges, push-ups, and shoulder presses.
-- **Challenge mode** (timed reps) and **Developer mode** describing the ML stack.
-- **3D Avatar mode** (Three.js + GLTF) that mirrors the user with smoothed limb motion and head-lock option, including TTS guidance.
-- **Azure Speech TTS** integration (ko-KR SunHi Neural) for guidance and countdowns.
-- Quality metrics for selected exercises (primary vs. secondary joints) to improve post-workout summaries.
+- **MoveNet (TF.js)** for Training/Challenge: real-time rep counting, HUD, and feedback.
+- **BlazePose GHUM 3D (MediaPipe runtime)** for Avatar mode: 33-keypoint 3D coordinates retargeted to a Three.js avatar, with pose overlay.
+- **Challenge mode** (timed reps) and **Developer mode** (ML pipeline overview).
+- **Avatar view / Camera view toggle**: camera view uses normal (non-mirrored) orientation; avatar view uses mirrored rendering.
+- **Azure Speech TTS** (ko-KR SunHi Neural) for guidance and countdowns.
+- Exercise quality metrics (primary/secondary joints) for post-workout summaries.
 
 ## Directory Structure
 
@@ -22,10 +23,10 @@ FitFormLive/
 │   ├── index.html       # Main SPA
 │   ├── css/styles.css
 │   └── js/              # Modularized client code
-│       ├── main.js      # App orchestration + modes
-│       ├── workout.js   # Exercise definitions & state
-│       ├── pose.js      # MoveNet helpers
-│       ├── avatar.js    # Three.js avatar driver
+│       ├── main.js      # App orchestration + mode switching, camera loop
+│       ├── workout.js   # Exercise definitions & state (MoveNet + BlazePose indices)
+│       ├── pose.js      # Pose detectors (MoveNet/BlazePose), keypoint normalization
+│       ├── avatar.js    # Three.js avatar driver (BlazePose 33 → bones)
 │       ├── tts.js       # Azure Speech bindings
 │       ├── challenge.js # Timer logic
 │       └── ui.js        # HUD rendering helpers
@@ -59,11 +60,13 @@ Refer to `.github/workflows/azure-static-web-apps-*.yml` for the GitHub Actions 
 
 `api/getspeechtoken/index.js` proxies Azure Speech token issuance. Ensure the Function App has `SPEECH_KEY` and `SPEECH_REGION` set. The frontend fetches `/api/getspeechtoken` to initialize TTS.
 
-## Avatar Notes
+## Pose / Avatar Notes
 
-- Uses GLTF models (`web/models/basic.glb`, `web/models/cute.glb`) loaded with Three.js.
-- Limb rotations are mirrored to match the camera view, with quaternion-based smoothing.
-- Full-body detection is smoothed (grace period + stability frames) to avoid constant pausing; warnings guide users to stay in frame.
+- Training/Challenge: MoveNet Lightning (TF.js) 17 keypoints.
+- Avatar: BlazePose GHUM 3D (MediaPipe runtime) 33 keypoints; 3D coordinates are preferred.
+- `pose.js` normalizes MoveNet/BlazePose outputs into both 17- and 33-keypoint arrays.
+- `avatar.js` maps BlazePose 33 keypoints directly to bone directions for full-body retargeting. Renderer is mirrored in avatar view; camera view shows non-mirrored pose lines.
+- Full-body detection uses stability frames and grace timers to control warnings/pauses.
 
 ## Quality Metrics
 
