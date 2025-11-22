@@ -24,19 +24,26 @@ const KOREAN_UNITS = [
   "아홉",
 ];
 
-const KOREAN_TENS = ["", "열", "스물", "서른", "마흔", "쉰"];
+const KOREAN_TENS = ["", "열", "스물", "서른", "마흔", "쉰", "예순", "일흔", "여든", "아흔"];
+const KOREAN_HUNDREDS = ["", "백", "이백", "삼백", "사백", "오백", "육백", "칠백", "팔백", "구백"];
 
 function getKoreanCountWord(n) {
-  if (n >= 1 && n <= 50) {
-    const tens = Math.floor(n / 10);
+  if (n >= 1 && n <= 999) {
+    const hundreds = Math.floor(n / 100);
+    const tens = Math.floor((n % 100) / 10);
     const unit = n % 10;
-    if (tens === 0) {
-      return KOREAN_UNITS[unit];
+
+    let word = "";
+    if (hundreds > 0) {
+      word += KOREAN_HUNDREDS[hundreds];
     }
-    if (unit === 0) {
-      return KOREAN_TENS[tens];
+    if (tens > 0) {
+      word += KOREAN_TENS[tens];
     }
-    return KOREAN_TENS[tens] + KOREAN_UNITS[unit];
+    if (unit > 0 || (hundreds === 0 && tens === 0)) {
+      word += KOREAN_UNITS[unit];
+    }
+    return word || String(n);
   }
   return String(n);
 }
@@ -279,6 +286,7 @@ export function playAvatarPhrase(key, fallbackText) {
 }
 
 export function playCountTTS(rep) {
+  if (rep <= 0 || rep > 999) return;
   const cached = ttsCache[rep];
   if (cached) {
     try {
@@ -292,12 +300,12 @@ export function playCountTTS(rep) {
   } else {
     const word = getKoreanCountWord(rep);
     speakText(word + "!");
-    if (rep >= 1 && rep < 50) {
+    if (rep >= 1 && rep < 999) {
       preloadSingleNumber(rep + 1);
     }
     return;
   }
-  if (rep >= 1 && rep < 50) {
+  if (rep >= 1 && rep < 999) {
     preloadSingleNumber(rep + 1);
   }
 }

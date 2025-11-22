@@ -4,6 +4,10 @@ Camera-based personal training experience built for Microsoft AI School project 
 
 [Live Demo](https://wonderful-ocean-031249900.3.azurestaticapps.net/)
 
+## Timeline
+- Team sprint: 2025-11-11 (Tue) ~ 2025-11-20 (Thu)
+- Continuing solo development after 2025-11-20
+
 ## Features
 
 - **MoveNet (TF.js)** for Training/Challenge: real-time rep counting, HUD, and feedback.
@@ -12,6 +16,11 @@ Camera-based personal training experience built for Microsoft AI School project 
 - **Avatar view / Camera view toggle**: camera view uses normal (non-mirrored) orientation; avatar view uses mirrored rendering.
 - **Azure Speech TTS** (ko-KR SunHi Neural) for guidance and countdowns.
 - Exercise quality metrics (primary/secondary joints) for post-workout summaries.
+
+## Motivation
+- Modern lifestyles often lead to inactivity, and beginners (“hellinis”) struggle to start with proper form.
+- A camera plus computer vision lowers the barrier: instant feedback, guided reps, and playful 3D avatar mirroring.
+- On-device models (MoveNet/BlazePose) keep latency low and protect privacy while delivering coach-like guidance.
 
 ## Directory Structure
 
@@ -67,6 +76,12 @@ Refer to `.github/workflows/azure-static-web-apps-*.yml` for the GitHub Actions 
 - `pose.js` normalizes MoveNet/BlazePose outputs into both 17- and 33-keypoint arrays.
 - `avatar.js` maps BlazePose 33 keypoints directly to bone directions for full-body retargeting. Renderer is mirrored in avatar view; camera view shows non-mirrored pose lines.
 - Full-body detection uses stability frames and grace timers to control warnings/pauses.
+
+## Mode Guide (Menus)
+- **Training mode**: Single-user workout with rep counting, HUD, and form feedback using MoveNet.
+- **Avatar mode**: BlazePose 3D drives a mirrored Three.js avatar; camera view toggle shows pose lines and rep logic from BlazePose.
+- **Challenge mode**: Timed rep challenges with HUD timers; uses MoveNet for counting.
+- **Developer mode**: Documentation of the ML stack, features, and links to training notebooks/code.
 
 ## Quality Metrics
 
