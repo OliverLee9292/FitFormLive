@@ -84,10 +84,11 @@ Refer to `.github/workflows/azure-static-web-apps-*.yml` for the GitHub Actions 
 
 ## ML Classification Experiments (in-progress)
 - Prototyped pose-quality regression/classification in `tools/classification/`:
-  - `train_regressor_auto.ipynb`: fits regressors on engineered features (angles, distances) against rule-based scores.
+  - `train_regressor_auto.ipynb`: fits a `RandomForestRegressor` on engineered features against rule-based scores; saves to `right_curl_score_regressor_auto.joblib`.
   - `frame_to_csv.ipynb`: converts frame-level pose data to CSV features.
-  - `set_features_with_rule_scores.csv` and `right_curl_score_regressor_auto.joblib`: sample dataset and trained regressor artifact.
-- Plan: refine feature set, add more exercises, and integrate a lightweight quality model into the app when performance/latency budgets allow.
+  - `set_features_with_rule_scores.csv`: sample dataset with features such as `rep_count`, `mean_rom`, `mean_tempo`, `bad_frame_ratio`, and `rule_score` target.
+- Current baseline: predicts rule_score for right-curl using the above features; serves as a seed for expanding to more exercises and potentially embedding a lightweight quality model in-app.
+- Next steps: broaden feature set per exercise, collect more labeled data, and benchmark lightweight models for on-device inference.
 
 ## Quality Metrics
 

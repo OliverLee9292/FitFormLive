@@ -60,10 +60,23 @@ const avatarWarningEl = document.getElementById("avatar-warning");
 const modelLabelEl = document.getElementById("model-label");
 const avatarContainer = document.getElementById("avatar-container");
 const cameraLayer = document.getElementById("camera-layer");
+const cameraPermissionBanner = document.getElementById("camera-permission-banner");
+const cameraPermissionText = document.getElementById("camera-permission-text");
+const cameraRetryBtn = document.getElementById("camera-retry-btn");
 const challengeRemainingEl = document.getElementById("challenge-remaining");
 const challengeView = document.getElementById("challenge-view");
 const summaryCloseHandler = () => hideSummaryOverlay(summaryOverlayEl);
 const langToggleBtn = document.getElementById("lang-toggle");
+const devDetectorEl = document.getElementById("dev-detector");
+const devBackendEl = document.getElementById("dev-backend");
+const devFpsEl = document.getElementById("dev-fps");
+const devResEl = document.getElementById("dev-res");
+const devKp2dEl = document.getElementById("dev-kp2d");
+const devKp3dEl = document.getElementById("dev-kp3d");
+const devModeEl = document.getElementById("dev-mode");
+const devExerciseEl = document.getElementById("dev-exercise");
+const devRepsEl = document.getElementById("dev-reps");
+const devAngleEl = document.getElementById("dev-angle");
 
 const trainingView = document.getElementById("training-view");
 const avatarView = document.getElementById("avatar-view");
@@ -92,6 +105,24 @@ function applyMirror(useMirror) {
   if (canvasEl) canvasEl.style.transform = scale;
 }
 
+function updateCameraPermissionText() {
+  if (cameraPermissionText) cameraPermissionText.textContent = t("cam_permission_needed", cameraPermissionText.textContent);
+  if (cameraRetryBtn) cameraRetryBtn.textContent = t("btn_camera_retry", cameraRetryBtn.textContent || "Retry Camera");
+}
+
+function showCameraPermissionWarning() {
+  updateCameraPermissionText();
+  if (cameraPermissionBanner) {
+    cameraPermissionBanner.style.display = "flex";
+  }
+}
+
+function hideCameraPermissionWarning() {
+  if (cameraPermissionBanner) {
+    cameraPermissionBanner.style.display = "none";
+  }
+}
+
 function updateCurrentExerciseLabel() {
   const ex = EXERCISES[state.currentKey];
   if (hudExercise && ex) {
@@ -104,6 +135,19 @@ function updateCurrentExerciseLabel() {
   if (exLabelEl) {
     exLabelEl.textContent = t("current_ex_label", "Current Exercise:");
   }
+}
+
+function updateDevPanel(info) {
+  if (devDetectorEl) devDetectorEl.textContent = info.detector || "-";
+  if (devBackendEl) devBackendEl.textContent = info.backend ? `Backend: ${info.backend}` : "Backend: -";
+  if (devFpsEl) devFpsEl.textContent = info.fps != null ? info.fps.toFixed(0) : "-";
+  if (devResEl) devResEl.textContent = info.resolution || "-";
+  if (devKp2dEl) devKp2dEl.textContent = info.kp2d != null ? info.kp2d : "-";
+  if (devKp3dEl) devKp3dEl.textContent = info.kp3d != null ? info.kp3d : "-";
+  if (devModeEl) devModeEl.textContent = info.mode || "-";
+  if (devExerciseEl) devExerciseEl.textContent = info.exercise || "-";
+  if (devRepsEl) devRepsEl.textContent = info.reps != null ? info.reps : "-";
+  if (devAngleEl) devAngleEl.textContent = info.angle != null ? Math.round(info.angle) : "-";
 }
 
 function openExercisePicker() {
@@ -408,19 +452,44 @@ async function renderLoop() {
   }
 
   updateChallengeTimer(challengeRemainingEl, () => stopWorkout({ reason: "challenge_complete" }));
+  updateDevPanel({
+    detector: state.detectorType === DETECTOR_TYPES.BLAZEPOSE ? "BlazePose GHUM 3D" : "MoveNet Lightning",
+    backend: (tf.getBackend && tf.getBackend()) || "-",
+    fps: state.fps,
+    resolution: `${videoEl.videoWidth || "-"}x${videoEl.videoHeight || "-"}`,
+    kp2d: state.detectorType === DETECTOR_TYPES.BLAZEPOSE ? 33 : 17,
+    kp3d: state.detectorType === DETECTOR_TYPES.BLAZEPOSE ? 33 : 0,
+    mode: state.currentMode,
+    exercise: EXERCISES[state.currentKey]?.name || "-",
+    reps: state.reps,
+    angle: state.lastAngle,
+  });
   state.animationId = requestAnimationFrame(renderLoop);
+}
+
+async function getStreamWithFallback() {
+  const primary = { video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" }, audio: false };
+  const fallback = { video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" }, audio: false };
+  try {
+    return await navigator.mediaDevices.getUserMedia(primary);
+  } catch (e) {
+    console.warn("Primary constraints failed, trying fallback:", e?.name || e);
+    return await navigator.mediaDevices.getUserMedia(fallback);
+  }
 }
 
 async function startCamera() {
   if (state.running) return;
   try {
     toggleCameraBtn.disabled = true;
-    toggleCameraBtn.textContent = "카메라 준비 중...";
+    toggleCameraBtn.textContent = t("btn_camera_start", "Start Camera");
+    hideCameraPermissionWarning();
 
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { width: 1280, height: 720 },
-      audio: false,
-    });
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error("getUserMedia unsupported");
+    }
+
+    const stream = await getStreamWithFallback();
     state.stream = stream;
     videoEl.srcObject = stream;
     await videoEl.play();
@@ -436,8 +505,16 @@ async function startCamera() {
     renderLoop();
     speakText(t("camera_started", "Camera started. Stand in the center and match your posture."));
   } catch (err) {
-    console.error(err);
-    alert("카메라 접근 중 오류가 발생했습니다. 브라우저 권한을 확인하세요.");
+    console.error("Camera error:", err);
+    const isPermission = err?.name === "NotAllowedError" || err?.name === "SecurityError";
+    const msg = isPermission
+      ? t("cam_permission_needed", "Camera permission is required. Click the camera icon in your browser and allow access.")
+      : "카메라 접근 중 오류가 발생했습니다. 브라우저 권한 또는 다른 앱 사용 여부를 확인하세요.";
+    statusLabel.textContent = isPermission ? t("fullbody_lost_label", "Full body not detected") : "Camera error";
+    statusDetail.textContent = msg;
+    if (isPermission) {
+      showCameraPermissionWarning();
+    }
     toggleCameraBtn.textContent = t("btn_camera_start", "Start Camera");
     toggleCameraBtn.disabled = false;
   }
@@ -459,6 +536,7 @@ function stopCamera() {
   }
   state.detector = null;
   ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+  hideCameraPermissionWarning();
   toggleCameraBtn.textContent = t("btn_camera_start", "Start Camera");
   toggleCameraBtn.disabled = false;
 }
@@ -682,6 +760,13 @@ function initEventListeners() {
     else stopCamera();
   });
 
+  if (cameraRetryBtn) {
+    cameraRetryBtn.addEventListener("click", () => {
+      hideCameraPermissionWarning();
+      startCamera();
+    });
+  }
+
   resetBtn.addEventListener("click", () => {
     resetCounter();
     hudReps.textContent = "0";
@@ -793,6 +878,7 @@ function init() {
       applyStaticText();
       setModelLabel(getDesiredDetectorType());
       toggleCameraBtn.textContent = state.running ? t("btn_camera_stop", "Stop Camera") : t("btn_camera_start", "Start Camera");
+      updateCameraPermissionText();
     });
   }
 }

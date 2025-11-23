@@ -28,6 +28,8 @@ const translations = {
     countdown_label: "시작 준비",
     countdown_detail: "5초 후에 시작합니다.",
     start_message: "시작합니다.",
+    cam_permission_needed: "카메라 권한을 허용해야 합니다. 브라우저 주소창의 카메라 아이콘을 눌러 허용으로 변경하세요.",
+    btn_camera_retry: "카메라 재시도",
     summary_auto: "30회를 완료했습니다. 요약을 확인하세요.",
     summary_stop: "다시 시작하려면 '운동 시작'을 누르세요.",
     lang_toggle: "EN",
@@ -79,6 +81,8 @@ const translations = {
     countdown_label: "Get Ready",
     countdown_detail: "Starting in 5 seconds.",
     start_message: "Starting now.",
+    cam_permission_needed: "Camera permission is required. Click the camera icon in your browser and allow access.",
+    btn_camera_retry: "Retry Camera",
     summary_auto: "Completed 30 reps. Check the summary.",
     summary_stop: "Press 'Start Workout' to begin again.",
     lang_toggle: "KO",
@@ -103,7 +107,7 @@ const translations = {
   },
 };
 
-let currentLanguage = "ko";
+let currentLanguage = "en";
 
 export function setLanguage(lang) {
   if (!translations[lang]) lang = "ko";
@@ -141,6 +145,8 @@ export function applyStaticText() {
     "lang-toggle": "lang_toggle",
     "current-ex-label": "current_ex_label",
     "status-label-prefix": "status_prefix",
+    "camera-permission-text": "cam_permission_needed",
+    "camera-retry-btn": "btn_camera_retry",
   };
   Object.entries(map).forEach(([id, key]) => {
     const el = document.getElementById(id);

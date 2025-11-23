@@ -85,6 +85,16 @@
                   <canvas id="canvas"></canvas>
                 </div>
 
+                <div
+                  id="camera-permission-banner"
+                  style="display:none; position:absolute; left:16px; right:16px; bottom:16px; padding:12px 14px; background:rgba(15,23,42,0.92); color:#e5e7eb; border:1px solid rgba(148,163,184,0.4); border-radius:12px; box-shadow:0 18px 50px rgba(0,0,0,0.55); gap:12px; align-items:center; z-index:10;"
+                >
+                  <div id="camera-permission-text" style="flex:1; font-size:14px; line-height:1.45;">
+                    카메라 권한을 허용해야 합니다. 브라우저 주소창의 카메라 아이콘을 눌러 허용으로 변경하세요.
+                  </div>
+                  <button id="camera-retry-btn" class="btn secondary" style="white-space:nowrap;">카메라 재시도</button>
+                </div>
+
                 <div id="countdown-overlay" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:72px; font-weight:700; color:white; text-shadow:0 0 16px rgba(0,0,0,0.8); background:rgba(15,23,42,0.45); opacity:0; transition:opacity 0.2s ease-out; pointer-events:none;"></div>
                 <div id="rep-overlay" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:80px; font-weight:800; color:white; text-shadow:0 0 24px rgba(0,0,0,0.9); pointer-events:none; opacity:0; transition:opacity 0.2s ease-out;"></div>
 
@@ -159,66 +169,51 @@
 
         <div id="dev-view" style="display:none; width:100%; max-width:1200px; margin-top:20px;">
           <div style="padding:16px; background:rgba(15,23,42,0.9); border-radius:16px; border:1px solid rgba(148,163,184,0.3); margin-bottom:16px;">
-            <h2 style="margin:0 0 12px;">개발자 도구 · 자세 분류 엔진</h2>
-            <p style="color:#9ca3af; font-size:14px; margin:0 0 8px;">
-              FIT FORM LIVE의 자세 평가는 <strong>MoveNet 포즈 추정 + ML 회귀/분류 모델</strong>로 이루어집니다.
-              각 프레임에서 포즈를 추출한 뒤, <strong>정상 자세에 얼마나 가까운지</strong>를 점수로 계산합니다.
-            </p>
-            <ul style="margin:8px 0 0 16px; padding:0; color:#9ca3af; font-size:13px; line-height:1.5;">
-              <li><strong>포즈 추정:</strong> MoveNet(Single Pose) 기반, 17개 관절 좌표 + score</li>
-              <li><strong>피처 엔지니어링:</strong> 관절 각도, 관절 간 거리, 정규화 좌표 등</li>
-              <li><strong>레이블 생성:</strong> 도메인 룰(rule)로 계산한 정상/비정상 점수</li>
-              <li><strong>ML 모델:</strong> 트리 기반 회귀/분류 모델 (예: Gradient Boosting, RandomForest 계열)</li>
-              <li><strong>출력:</strong> 프레임별 “자세 정상도 점수” 및 임계값 기반 정상/비정상 판별</li>
-            </ul>
+            <h2 style="margin:0 0 12px;">Developer Tools · Live Debug</h2>
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:12px;">
+              <div style="padding:12px; border:1px solid rgba(148,163,184,0.35); border-radius:12px; background:rgba(15,23,42,0.85);">
+                <div style="font-size:12px; color:#9ca3af; margin-bottom:6px;">Runtime</div>
+                <div style="font-size:14px;"><strong id="dev-detector">-</strong></div>
+                <div style="font-size:12px; color:#9ca3af;" id="dev-backend">Backend: -</div>
+              </div>
+              <div style="padding:12px; border:1px solid rgba(148,163,184,0.35); border-radius:12px; background:rgba(15,23,42,0.85);">
+                <div style="font-size:12px; color:#9ca3af; margin-bottom:6px;">Performance</div>
+                <div style="font-size:14px;">FPS: <strong id="dev-fps">-</strong></div>
+                <div style="font-size:12px; color:#9ca3af;">Resolution: <span id="dev-res">-</span></div>
+              </div>
+              <div style="padding:12px; border:1px solid rgba(148,163,184,0.35); border-radius:12px; background:rgba(15,23,42,0.85);">
+                <div style="font-size:12px; color:#9ca3af; margin-bottom:6px;">Keypoints</div>
+                <div style="font-size:14px;">2D: <strong id="dev-kp2d">-</strong> · 3D: <strong id="dev-kp3d">-</strong></div>
+                <div style="font-size:12px; color:#9ca3af;">Mode: <span id="dev-mode">-</span></div>
+              </div>
+              <div style="padding:12px; border:1px solid rgba(148,163,184,0.35); border-radius:12px; background:rgba(15,23,42,0.85);">
+                <div style="font-size:12px; color:#9ca3af; margin-bottom:6px;">Exercise</div>
+                <div style="font-size:14px;" id="dev-exercise">-</div>
+                <div style="font-size:12px; color:#9ca3af;">Reps: <span id="dev-reps">-</span> · Angle: <span id="dev-angle">-</span></div>
+              </div>
+            </div>
           </div>
 
           <div style="padding:16px; background:rgba(15,23,42,0.9); border-radius:16px; border:1px solid rgba(148,163,184,0.3); margin-bottom:16px;">
-            <h3 style="margin:0 0 8px; font-size:16px;">학습 데이터 &amp; 피처 구조</h3>
+            <h3 style="margin:0 0 8px; font-size:16px;">ML / Data Notes</h3>
             <p style="color:#9ca3af; font-size:13px; margin:0 0 8px;">
-              학습에 사용된 데이터셋은 각 프레임마다 MoveNet keypoint와 파생 피처를 포함하고,
-              <strong>룰 기반 점수(rule score)</strong>를 정답(label)로 사용해 ML 모델을 학습했습니다.
+              Rule-based quality scores and engineered pose features are used to train lightweight regressors/classifiers (see <code>tools/Classification</code>).
             </p>
             <ul style="margin:8px 0 0 16px; padding:0; color:#9ca3af; font-size:13px; line-height:1.5;">
-              <li><strong>keypoint_xxx:</strong> 17개 관절의 (x, y, score)</li>
-              <li><strong>angle_*</strong>: 팔꿈치, 무릎 등 주요 관절 각도</li>
-              <li><strong>거리 피처:</strong> 어깨–팔꿈치, 엉덩이–무릎 등 관절 간 거리</li>
-              <li><strong>rule_score / good_score:</strong> 사람이 설계한 룰로 계산한 “정상 자세 점수”</li>
+              <li><strong>Features:</strong> rep_count, mean ROM, tempo, bad_frame_ratio + angles/distances</li>
+              <li><strong>Model (proto):</strong> RandomForestRegressor predicting rule_score (right curl baseline)</li>
+              <li><strong>Artifacts:</strong> set_features_with_rule_scores.csv, right_curl_score_regressor_auto.joblib</li>
             </ul>
-            <p style="color:#9ca3af; font-size:13px; margin:8px 0 0;">
-              모델은 이 피처들을 입력으로 받아 <strong>rule_score를 근사하도록 학습</strong>되었고,
-              서비스에서는 이 예측값을 기반으로 <strong>정상 / 비정상</strong>을 실시간으로 표시합니다.
-            </p>
           </div>
 
           <div style="padding:16px; background:rgba(15,23,42,0.9); border-radius:16px; border:1px solid rgba(148,163,184,0.3);">
-            <h3 style="margin:0 0 8px; font-size:16px;">내 데이터로 직접 돌려보기 (GitHub)</h3>
-            <p style="color:#9ca3af; font-size:13px; margin:0 0 8px;">
-              아래 버튼을 누르면, FIT FORM LIVE에서 사용한 <strong>자세 분류용 노트북 및 학습 코드</strong>가 있는
-              GitHub 리포지토리로 이동합니다. 로컬에서 Jupyter 환경을 열어, 본인 데이터로 직접 실험해 볼 수 있습니다.
-            </p>
-            <ol style="margin:8px 0 8px 18px; padding:0; color:#9ca3af; font-size:13px; line-height:1.6;">
-              <li>GitHub에서 <strong>ipynb / Python 스크립트</strong>를 다운로드합니다.</li>
-              <li>로컬에서 <strong>conda / venv</strong> 환경을 만들고, 요구 패키지를 설치합니다.</li>
-              <li>본인의 프레임 데이터(CSV 또는 영상에서 추출)를 넣고, 동일한 파이프라인으로 점수를 계산해 봅니다.</li>
-            </ol>
-
-            <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;">
-              <a
-                href="https://github.com/Bauhaus-K/FitForm-Live-Project/tree/main/classification%20model"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="btn secondary"
-                style="text-decoration:none; font-size:13px; padding:6px 12px;"
-              >
-                📥 GitHub에서 노트북 / 코드 열기
-              </a>
+            <h3 style="margin:0 0 8px; font-size:16px;">Links</h3>
+            <div style="display:flex; flex-wrap:wrap; gap:8px;">
+              <a href="tools/Classification/train_regressor_auto.ipynb" class="btn secondary" style="text-decoration:none; font-size:13px; padding:6px 12px;">📓 View notebook (regressor)</a>
+              <a href="tools/Classification/frame_to_csv.ipynb" class="btn secondary" style="text-decoration:none; font-size:13px; padding:6px 12px;">📓 View notebook (feature export)</a>
+              <a href="tools/Classification/set_features_with_rule_scores.csv" class="btn secondary" style="text-decoration:none; font-size:13px; padding:6px 12px;">📄 Sample dataset</a>
+              <a href="tools/Classification/right_curl_score_regressor_auto.joblib" class="btn secondary" style="text-decoration:none; font-size:13px; padding:6px 12px;">📦 Baseline model</a>
             </div>
-
-            <p style="color:#6b7280; font-size:12px; margin:10px 0 0;">
-              * GitHub 리포지토리 안의 설명(README, 노트북 마크다운 셀)을 참고해,
-              데이터 경로와 하이퍼파라미터를 자유롭게 수정해 보세요.
-            </p>
           </div>
         </div>
       </main>
