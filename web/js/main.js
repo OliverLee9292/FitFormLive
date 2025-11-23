@@ -63,6 +63,8 @@ const cameraLayer = document.getElementById("camera-layer");
 const cameraPermissionBanner = document.getElementById("camera-permission-banner");
 const cameraPermissionText = document.getElementById("camera-permission-text");
 const cameraRetryBtn = document.getElementById("camera-retry-btn");
+const cameraLoadingOverlay = document.getElementById("camera-loading-overlay");
+const cameraLoadingText = document.getElementById("camera-loading-text");
 const challengeRemainingEl = document.getElementById("challenge-remaining");
 const challengeView = document.getElementById("challenge-view");
 const summaryCloseHandler = () => hideSummaryOverlay(summaryOverlayEl);
@@ -82,6 +84,16 @@ const trainingView = document.getElementById("training-view");
 const avatarView = document.getElementById("avatar-view");
 const devView = document.getElementById("dev-view");
 
+const introOverlay = document.getElementById("intro-overlay");
+const introStep1 = document.getElementById("intro-step1");
+const introStep2 = document.getElementById("intro-step2");
+const introNextBtn = document.getElementById("intro-next");
+const introBackBtn = document.getElementById("intro-back");
+const introCameraBtn = document.getElementById("intro-camera-btn");
+const introCards = document.querySelectorAll(".intro-card");
+const cameraBlockedModal = document.getElementById("camera-blocked-modal");
+const cameraBlockedClose = document.getElementById("camera-blocked-close");
+
 const menuTrainingBtn = document.getElementById("menu-training");
 const menuAvatarBtn = document.getElementById("menu-avatar");
 const menuChallengeBtn = document.getElementById("menu-challenge");
@@ -99,10 +111,44 @@ const uiTargets = {
   statusDot,
 };
 
+let preloadScheduled = false;
+let introSelectedMode = null;
+
 function applyMirror(useMirror) {
   const scale = useMirror ? "scaleX(-1)" : "scaleX(1)";
   if (videoEl) videoEl.style.transform = scale;
   if (canvasEl) canvasEl.style.transform = scale;
+}
+
+function goToIntroStep(step) {
+  if (!introOverlay) return;
+  if (introStep1) introStep1.style.display = step === 1 ? "flex" : "none";
+  if (introStep2) introStep2.style.display = step === 2 ? "flex" : "none";
+  introOverlay.style.display = "flex";
+}
+
+function hideIntro() {
+  if (introOverlay) introOverlay.style.display = "none";
+  try {
+    sessionStorage.setItem("fitform_intro_shown", "1");
+  } catch (_) {
+    /* ignore */
+  }
+}
+
+function applyIntroSelection(mode) {
+  introSelectedMode = mode;
+  introCards.forEach((card) => {
+    if (card.dataset.mode === mode) card.classList.add("selected");
+    else card.classList.remove("selected");
+  });
+  if (introNextBtn) {
+    introNextBtn.disabled = !mode;
+    introNextBtn.style.opacity = mode ? 1 : 0.7;
+  }
+  if (mode === "training") handleMenuChange(menuTrainingBtn);
+  else if (mode === "challenge") handleMenuChange(menuChallengeBtn);
+  else if (mode === "avatar") handleMenuChange(menuAvatarBtn);
 }
 
 function updateCameraPermissionText() {
@@ -121,6 +167,30 @@ function hideCameraPermissionWarning() {
   if (cameraPermissionBanner) {
     cameraPermissionBanner.style.display = "none";
   }
+}
+
+function showCameraLoading(messageKey = "loading_camera", fallback = "Preparing camera...") {
+  if (!cameraLoadingOverlay || !cameraLoadingText) return;
+  cameraLoadingText.textContent = t(messageKey, fallback);
+  cameraLoadingOverlay.style.display = "flex";
+}
+
+function updateCameraLoading(messageKey = "loading_model", fallback = "Loading pose model...") {
+  if (!cameraLoadingOverlay || !cameraLoadingText) return;
+  cameraLoadingText.textContent = t(messageKey, fallback);
+}
+
+function hideCameraLoading() {
+  if (!cameraLoadingOverlay) return;
+  cameraLoadingOverlay.style.display = "none";
+}
+
+function showCameraBlockedModal() {
+  if (cameraBlockedModal) cameraBlockedModal.style.display = "flex";
+}
+
+function hideCameraBlockedModal() {
+  if (cameraBlockedModal) cameraBlockedModal.style.display = "none";
 }
 
 function updateCurrentExerciseLabel() {
@@ -165,6 +235,25 @@ function closeExercisePicker() {
   exercisePickerOverlay.style.pointerEvents = "none";
 }
 
+function scheduleDetectorPreload() {
+  if (preloadScheduled) return;
+  preloadScheduled = true;
+  const handler = () => {
+    setTimeout(() => {
+      ensureDetectorForMode().catch((e) => console.warn("Preload detector failed", e));
+    }, 0);
+  };
+  window.addEventListener("pointerdown", handler, { once: true });
+  window.addEventListener("keydown", handler, { once: true });
+  window.addEventListener("touchstart", handler, { once: true });
+}
+
+function maybeShowIntro() {
+  goToIntroStep(1);
+  applyIntroSelection(introSelectedMode || "training");
+  if (introOverlay) introOverlay.style.display = "flex";
+}
+
 function selectExerciseAndStart(key) {
   if (!EXERCISES[key]) return;
   setCurrentExercise(key);
@@ -175,11 +264,16 @@ function selectExerciseAndStart(key) {
 
   const ex = EXERCISES[key];
   updateCurrentExerciseLabel();
-  statusLabel.textContent = "동작 선택됨";
+  statusLabel.textContent = t("exercise_selected", "Exercise selected");
   statusDetail.textContent =
-    (getStartHint(ex, getLanguage()) || "준비자세를 맞춰 주세요.") + " " + t("start_hint_suffix", "Press start to begin in 5 seconds.");
+    (getStartHint(ex, getLanguage()) || t("start_hint_default", "Align your ready posture.")) +
+    " " +
+    t("start_hint_suffix", "Press start to begin in 5 seconds.");
   speakText(
-    `${ex.name} 선택. ${getStartHint(ex, getLanguage()) || ""} ${t("start_hint_suffix", "Press start to begin in 5 seconds.")}`
+    `${ex.name} ${t("exercise_selected_voice", "selected.")} ${getStartHint(ex, getLanguage()) || ""} ${t(
+      "start_hint_suffix",
+      "Press start to begin in 5 seconds."
+    )}`
   );
 
   closeExercisePicker();
@@ -227,7 +321,7 @@ function applyAvatarViewMode(mode) {
       toggleOverlayBtn.style.display = "inline-flex";
       toggleOverlayBtn.textContent = state.showSkeleton ? t("btn_overlay_off", "Hide Skeleton") : t("btn_overlay_on", "Show Skeleton");
     }
-    if (toggleAvatarViewBtn) toggleAvatarViewBtn.textContent = "아바타 보기";
+    if (toggleAvatarViewBtn) toggleAvatarViewBtn.textContent = t("btn_view_avatar", "Avatar View");
     if (avatarWarningEl) avatarWarningEl.style.display = "none";
   } else {
     if (avatarContainer) avatarContainer.style.display = "block";
@@ -238,7 +332,7 @@ function applyAvatarViewMode(mode) {
       toggleOverlayBtn.style.display = "none";
       toggleOverlayBtn.textContent = state.showSkeleton ? t("btn_overlay_off", "Hide Skeleton") : t("btn_overlay_on", "Show Skeleton");
     }
-    if (toggleAvatarViewBtn) toggleAvatarViewBtn.textContent = "카메라 보기";
+    if (toggleAvatarViewBtn) toggleAvatarViewBtn.textContent = t("btn_view_camera", "Camera View");
     if (avatarWarningEl) avatarWarningEl.style.display = "flex";
     if (avatarContainer && window.__avatarInitialized) {
       resizeAvatarRenderer(avatarContainer);
@@ -384,11 +478,8 @@ async function renderLoop() {
         reps: state.reps,
         angle: angleForHud,
         fps: state.fps,
-        label: angle == null ? t("pose_detecting_label", "Detecting pose") : ok ? "Hold start position" : "Set start position",
-        detail:
-          angle == null
-            ? t("status_pose_detecting")
-            : getStartHint(ex, getLanguage()) || "준비자세를 맞춰 주세요. (정면을 보고 화면 중앙에 서세요.)",
+        label: angle == null ? t("pose_detecting_label", "Detecting pose") : ok ? t("hold_start", "Hold start position") : t("set_start", "Set start position"),
+        detail: angle == null ? t("status_pose_detecting") : getStartHint(ex, getLanguage()) || t("start_hint_ready", "Face the camera and align your start posture."),
         good: ok,
       });
     } else if (state.currentMode === "avatar" && state.workoutPausedForNoBody) {
@@ -420,7 +511,7 @@ async function renderLoop() {
       }
       const fb =
         angle == null
-          ? { label: "Detecting", detail: "관절을 더 명확히 보기 위해 한 걸음 물러서 주세요.", good: false }
+          ? { label: t("pose_detecting_label", "Detecting pose"), detail: t("pose_step_back", "Step back slightly so joints are clearer."), good: false }
           : ex.feedback(angle);
       state.totalFrames += 1;
       if (fb.good) state.goodFrames += 1;
@@ -484,6 +575,7 @@ async function startCamera() {
     toggleCameraBtn.disabled = true;
     toggleCameraBtn.textContent = t("btn_camera_start", "Start Camera");
     hideCameraPermissionWarning();
+    showCameraLoading("loading_camera", "Preparing camera...");
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       throw new Error("getUserMedia unsupported");
@@ -496,25 +588,30 @@ async function startCamera() {
     canvasEl.width = videoEl.videoWidth;
     canvasEl.height = videoEl.videoHeight;
 
+    updateCameraLoading("loading_model", "Loading pose model...");
     await ensureDetectorForMode();
 
     state.running = true;
     state.lastFrameTime = performance.now();
     toggleCameraBtn.textContent = t("btn_camera_stop", "Stop Camera");
     toggleCameraBtn.disabled = false;
+    hideCameraLoading();
+    hideCameraBlockedModal();
     renderLoop();
     speakText(t("camera_started", "Camera started. Stand in the center and match your posture."));
   } catch (err) {
     console.error("Camera error:", err);
     const isPermission = err?.name === "NotAllowedError" || err?.name === "SecurityError";
-    const msg = isPermission
-      ? t("cam_permission_needed", "Camera permission is required. Click the camera icon in your browser and allow access.")
-      : "카메라 접근 중 오류가 발생했습니다. 브라우저 권한 또는 다른 앱 사용 여부를 확인하세요.";
+  const msg = isPermission
+    ? t("cam_permission_needed", "Camera permission is required. Click the camera icon in your browser and allow access.")
+    : t("cam_error_generic", "Camera access failed. Check browser permissions or whether another app is using the camera.");
     statusLabel.textContent = isPermission ? t("fullbody_lost_label", "Full body not detected") : "Camera error";
     statusDetail.textContent = msg;
     if (isPermission) {
       showCameraPermissionWarning();
+      showCameraBlockedModal();
     }
+    hideCameraLoading();
     toggleCameraBtn.textContent = t("btn_camera_start", "Start Camera");
     toggleCameraBtn.disabled = false;
   }
@@ -537,6 +634,7 @@ function stopCamera() {
   state.detector = null;
   ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
   hideCameraPermissionWarning();
+  hideCameraLoading();
   toggleCameraBtn.textContent = t("btn_camera_start", "Start Camera");
   toggleCameraBtn.disabled = false;
 }
@@ -552,8 +650,8 @@ function startCountdownAndWorkout() {
 
   if (state.currentMode === "challenge" && !state.challengeDurationMinutes) {
     statusLabel.textContent = t("challenge_time_needed", "Select duration first");
-    statusDetail.textContent = "도전 모드에서는 먼저 도전 시간을 선택해 주세요.";
-    speakText("도전 시간을 먼저 선택해 주세요.");
+    statusDetail.textContent = t("challenge_time_needed_detail", "Please select a challenge duration before starting.");
+    speakText(t("challenge_time_needed_voice", "Please choose a challenge duration before starting."));
     return;
   }
 
@@ -641,7 +739,7 @@ function stopWorkout(options = {}) {
   const summaryData = buildSummary();
   showSummaryOverlay(summaryOverlayEl, summaryData, summaryCloseHandler);
   if (state.reps > 0) {
-    speakText(`총 ${state.reps}회 수행했습니다. 수고하셨습니다.`);
+    speakText(t("summary_voice", "You completed {reps} reps. Great job!").replace("{reps}", state.reps));
   }
 }
 
@@ -720,7 +818,7 @@ function handleMenuChange(target) {
     if (avatarContainer) avatarContainer.style.display = "none";
     if (cameraLayer) cameraLayer.style.display = "block";
     stopAvatarAnimation();
-    if (startWorkoutBtn) startWorkoutBtn.textContent = "도전 시작";
+    if (startWorkoutBtn) startWorkoutBtn.textContent = t("btn_challenge_start", "Start Challenge");
     if (challengeView) challengeView.style.display = "block";
   } else if (target === menuDevBtn) {
     trainingView.style.display = "none";
@@ -759,6 +857,34 @@ function initEventListeners() {
     if (!state.running) startCamera();
     else stopCamera();
   });
+
+  introCards.forEach((card) => {
+    card.addEventListener("click", () => {
+      applyIntroSelection(card.dataset.mode);
+    });
+  });
+
+  if (introNextBtn) {
+    introNextBtn.addEventListener("click", () => {
+      if (!introSelectedMode) return;
+      goToIntroStep(2);
+    });
+  }
+
+  if (introBackBtn) {
+    introBackBtn.addEventListener("click", () => goToIntroStep(1));
+  }
+
+  if (introCameraBtn) {
+    introCameraBtn.addEventListener("click", async () => {
+      await startCamera();
+      if (state.running) hideIntro();
+    });
+  }
+
+  if (cameraBlockedClose) {
+    cameraBlockedClose.addEventListener("click", () => hideCameraBlockedModal());
+  }
 
   if (cameraRetryBtn) {
     cameraRetryBtn.addEventListener("click", () => {
@@ -845,8 +971,8 @@ function initEventListeners() {
       challengeButtons.forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
       setChallengeDuration(mins, challengeRemainingEl);
-      statusLabel.textContent = "도전 시간 선택됨";
-      statusDetail.textContent = `${mins}분 동안 수행 가능한 횟수를 측정합니다.`;
+      statusLabel.textContent = t("challenge_time_set_label", "Challenge time set");
+      statusDetail.textContent = t("challenge_time_set_detail", "We will measure max reps in the selected time.").replace("{mins}", mins);
     });
   });
 
@@ -861,6 +987,7 @@ function init() {
   initLanguage();
   initSpeechOnce();
   setTtsLanguage(getLanguage());
+  scheduleDetectorPreload();
   setAvatarExerciseKey(state.currentKey);
   setModelLabel(getDesiredDetectorType());
   updateCurrentExerciseLabel();
@@ -869,6 +996,7 @@ function init() {
   }
   handleMenuChange(menuTrainingBtn);
   initEventListeners();
+  maybeShowIntro();
 
   if (langToggleBtn) {
     langToggleBtn.addEventListener("click", () => {

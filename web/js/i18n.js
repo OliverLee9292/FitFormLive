@@ -30,6 +30,9 @@ const translations = {
     start_message: "시작합니다.",
     cam_permission_needed: "카메라 권한을 허용해야 합니다. 브라우저 주소창의 카메라 아이콘을 눌러 허용으로 변경하세요.",
     btn_camera_retry: "카메라 재시도",
+    loading_camera: "카메라 준비 중...",
+    loading_model: "포즈 모델을 불러오는 중입니다...",
+    loading_wait: "모델을 불러오고 있습니다. 잠시만 기다려 주세요.",
     summary_auto: "30회를 완료했습니다. 요약을 확인하세요.",
     summary_stop: "다시 시작하려면 '운동 시작'을 누르세요.",
     lang_toggle: "EN",
@@ -51,6 +54,38 @@ const translations = {
     summary_title: "운동 요약",
     summary_total: "총 횟수",
     summary_hint: "다시 시작하려면 화면을 클릭하거나 아래 버튼을 누르세요.",
+    exercise_selected: "동작 선택됨",
+    exercise_selected_voice: "선택.",
+    start_hint_default: "준비자세를 맞춰 주세요.",
+    start_hint_ready: "정면을 보고 화면 중앙에 서세요.",
+    hold_start: "시작 자세 유지",
+    set_start: "시작 자세를 맞춰 주세요",
+    pose_step_back: "관절을 더 명확히 보기 위해 한 걸음 물러서 주세요.",
+    cam_error_generic: "카메라 접근 중 오류가 발생했습니다. 브라우저 권한 또는 다른 앱 사용 여부를 확인하세요.",
+    challenge_time_needed_detail: "도전 모드에서는 먼저 도전 시간을 선택해 주세요.",
+    challenge_time_needed_voice: "도전 시간을 먼저 선택해 주세요.",
+    challenge_time_set_label: "도전 시간 선택됨",
+    challenge_time_set_detail: "{mins}분 동안 수행 가능한 횟수를 측정합니다.",
+    summary_voice: "총 {reps}회 수행했습니다. 수고하셨습니다.",
+    btn_view_avatar: "아바타 보기",
+    btn_view_camera: "카메라 보기",
+    camera_blocked_title: "카메라가 차단되어 있습니다",
+    camera_blocked_body:
+      "Safari(아이폰/맥): 설정 → Safari → 카메라 → 허용으로 변경하거나, 주소창의 카메라 아이콘에서 허용으로 변경하세요. 시스템 카메라가 비활성화된 경우 설정 → 개인정보 보호 → 카메라에서 Safari 권한을 켜주세요.",
+    camera_blocked_close: "닫기",
+    intro_title: "시작할 모드를 선택하세요",
+    intro_subtitle: "방문해 주셔서 감사합니다! 함께 운동 여정을 만들어가요.",
+    intro_training_title: "트레이닝 모드",
+    intro_training_desc: "MoveNet으로 빠르게 자세를 잡고 반복 횟수를 측정합니다.",
+    intro_challenge_title: "도전 모드",
+    intro_challenge_desc: "타이머를 켜고 최대 반복 횟수를 기록합니다.",
+    intro_avatar_title: "아바타 모드",
+    intro_avatar_desc: "BlazePose 3D로 전신을 인식하고 아바타로 미러링합니다.",
+    intro_next: "다음",
+    intro_camera_title: "카메라 접근 허용이 필요합니다",
+    intro_camera_desc: "정확한 자세 인식을 위해 카메라 접근을 허용해야 합니다. 브라우저 주소창의 카메라 아이콘에서 허용으로 변경해 주세요.",
+    intro_camera_btn: "카메라 시작",
+    intro_back: "이전",
   },
   en: {
     header_title: "FIT FORM LIVE - AI PT for Beginners",
@@ -83,6 +118,9 @@ const translations = {
     start_message: "Starting now.",
     cam_permission_needed: "Camera permission is required. Click the camera icon in your browser and allow access.",
     btn_camera_retry: "Retry Camera",
+    loading_camera: "Preparing camera...",
+    loading_model: "Loading pose model...",
+    loading_wait: "Loading models. This can take a few seconds on first start.",
     summary_auto: "Completed 30 reps. Check the summary.",
     summary_stop: "Press 'Start Workout' to begin again.",
     lang_toggle: "KO",
@@ -104,6 +142,38 @@ const translations = {
     summary_title: "Workout Summary",
     summary_total: "Total reps",
     summary_hint: "Click the screen or press the button below to restart.",
+    exercise_selected: "Exercise selected",
+    exercise_selected_voice: "selected.",
+    start_hint_default: "Align your ready posture.",
+    start_hint_ready: "Face forward and stand centered in frame.",
+    hold_start: "Hold start position",
+    set_start: "Set start position",
+    pose_step_back: "Step back slightly so joints are clearer.",
+    cam_error_generic: "Camera access failed. Check browser permissions or whether another app is using the camera.",
+    challenge_time_needed_detail: "Please select a challenge duration before starting.",
+    challenge_time_needed_voice: "Please choose a challenge duration before starting.",
+    challenge_time_set_label: "Challenge time set",
+    challenge_time_set_detail: "We will measure max reps in {mins} minutes.",
+    summary_voice: "You completed {reps} reps. Great job!",
+    btn_view_avatar: "Avatar View",
+    btn_view_camera: "Camera View",
+    camera_blocked_title: "Camera is blocked",
+    camera_blocked_body:
+      "If Safari or system settings block the camera, enable it in Settings → Safari → Camera (Allow), or click the camera icon in the address bar. On macOS/iOS, also check System/Privacy camera permissions.",
+    camera_blocked_close: "Close",
+    intro_title: "Choose your mode to start",
+    intro_subtitle: "Thanks for visiting! We’re excited to build your training journey together.",
+    intro_training_title: "Training Mode",
+    intro_training_desc: "Use MoveNet for fast posture cues and rep counting.",
+    intro_challenge_title: "Challenge Mode",
+    intro_challenge_desc: "Run a timer and record your max reps.",
+    intro_avatar_title: "Avatar Mode",
+    intro_avatar_desc: "Use BlazePose 3D for full-body tracking and mirroring.",
+    intro_next: "Next",
+    intro_camera_title: "Camera access is required",
+    intro_camera_desc: "Allow camera access for accurate posture tracking. Use your browser's camera icon to enable it.",
+    intro_camera_btn: "Start Camera",
+    intro_back: "Back",
   },
 };
 
@@ -112,6 +182,9 @@ let currentLanguage = "en";
 export function setLanguage(lang) {
   if (!translations[lang]) lang = "ko";
   currentLanguage = lang;
+  if (typeof document !== "undefined") {
+    document.documentElement.lang = lang;
+  }
   applyStaticText();
   try {
     localStorage.setItem("fitform_lang", lang);
@@ -147,6 +220,24 @@ export function applyStaticText() {
     "status-label-prefix": "status_prefix",
     "camera-permission-text": "cam_permission_needed",
     "camera-retry-btn": "btn_camera_retry",
+    "camera-loading-text": "loading_camera",
+    "camera-loading-sub": "loading_wait",
+    "intro-title": "intro_title",
+    "intro-subtitle": "intro_subtitle",
+    "intro-card-training-title": "intro_training_title",
+    "intro-card-training-desc": "intro_training_desc",
+    "intro-card-challenge-title": "intro_challenge_title",
+    "intro-card-challenge-desc": "intro_challenge_desc",
+    "intro-card-avatar-title": "intro_avatar_title",
+    "intro-card-avatar-desc": "intro_avatar_desc",
+    "intro-next": "intro_next",
+    "intro-camera-title": "intro_camera_title",
+    "intro-camera-desc": "intro_camera_desc",
+    "intro-camera-btn": "intro_camera_btn",
+    "intro-back": "intro_back",
+    "camera-blocked-title": "camera_blocked_title",
+    "camera-blocked-body": "camera_blocked_body",
+    "camera-blocked-close": "camera_blocked_close",
   };
   Object.entries(map).forEach(([id, key]) => {
     const el = document.getElementById(id);
@@ -165,6 +256,9 @@ export function initLanguage() {
   }
   if (saved && translations[saved]) {
     currentLanguage = saved;
+  }
+  if (typeof document !== "undefined") {
+    document.documentElement.lang = currentLanguage;
   }
   applyStaticText();
 }
