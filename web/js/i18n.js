@@ -1,7 +1,7 @@
 const translations = {
   ko: {
     header_title: "FIT FORM LIVE - 헬린이를 위한 AI PT",
-    subtitle: "Microsoft AI School 8기 1차 프로젝트 7팀 [김태훈, 고영후, 이재웅, 이동현, 이누리, 허진호]",
+    subtitle: "Microsoft AI School 8기 1차 프로젝트 (2025.11.11 ~ 11.20) 이후 현재는 단독으로 개발/운영 중입니다.",
     menu_training: "트레이닝 모드",
     menu_avatar: "아바타 모드",
     menu_challenge: "도전 모드",
@@ -52,7 +52,7 @@ const translations = {
   },
   en: {
     header_title: "FIT FORM LIVE - AI PT for Beginners",
-    subtitle: "Microsoft AI School 8th Cohort, Project Team 7",
+    subtitle: "Microsoft AI School 8th Cohort, 1st Project Team 7 (2025.11.11 ~ 11.20); currently developed and maintained solo.",
     menu_training: "Training Mode",
     menu_avatar: "Avatar Mode",
     menu_challenge: "Challenge Mode",
