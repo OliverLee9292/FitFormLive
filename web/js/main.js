@@ -7,6 +7,7 @@ import {
   isStartReady,
   buildSummary,
   setCurrentExercise,
+  getStartHint,
 } from "./workout.js";
 import {
   createDetector,
@@ -99,6 +100,10 @@ function updateCurrentExerciseLabel() {
   if (currentExerciseNameEl && ex) {
     currentExerciseNameEl.textContent = ex.name;
   }
+  const exLabelEl = document.getElementById("current-ex-label");
+  if (exLabelEl) {
+    exLabelEl.textContent = t("current_ex_label", "Current Exercise:");
+  }
 }
 
 function openExercisePicker() {
@@ -128,9 +133,9 @@ function selectExerciseAndStart(key) {
   updateCurrentExerciseLabel();
   statusLabel.textContent = "동작 선택됨";
   statusDetail.textContent =
-    (ex.start?.hint || "준비자세를 맞춰 주세요.") + " 운동 시작 버튼을 누르면 5초 후에 시작합니다.";
+    (getStartHint(ex, getLanguage()) || "준비자세를 맞춰 주세요.") + " " + t("start_hint_suffix", "Press start to begin in 5 seconds.");
   speakText(
-    `${ex.name}를 선택했습니다. ${ex.start?.hint || "준비자세를 맞춰 주세요."} 준비가 되면 운동 시작 버튼을 눌러 주세요.`
+    `${ex.name} 선택. ${getStartHint(ex, getLanguage()) || ""} ${t("start_hint_suffix", "Press start to begin in 5 seconds.")}`
   );
 
   closeExercisePicker();
@@ -339,7 +344,7 @@ async function renderLoop() {
         detail:
           angle == null
             ? t("status_pose_detecting")
-            : ex.start?.hint || "준비자세를 맞춰 주세요. (정면을 보고 화면 중앙에 서세요.)",
+            : getStartHint(ex, getLanguage()) || "준비자세를 맞춰 주세요. (정면을 보고 화면 중앙에 서세요.)",
         good: ok,
       });
     } else if (state.currentMode === "avatar" && state.workoutPausedForNoBody) {
@@ -429,7 +434,7 @@ async function startCamera() {
     toggleCameraBtn.textContent = t("btn_camera_stop", "Stop Camera");
     toggleCameraBtn.disabled = false;
     renderLoop();
-    speakText("카메라가 시작되었습니다. 화면 중앙에 서서 자세를 맞춰 주세요.");
+    speakText(t("camera_started", "Camera started. Stand in the center and match your posture."));
   } catch (err) {
     console.error(err);
     alert("카메라 접근 중 오류가 발생했습니다. 브라우저 권한을 확인하세요.");

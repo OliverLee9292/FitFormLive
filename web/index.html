@@ -60,7 +60,7 @@
                   </div>
 
                   <div class="current-exercise-display">
-                    <span class="current-ex-label">현재 수행 동작:</span>
+                    <span class="current-ex-label" id="current-ex-label">현재 수행 동작:</span>
                     <span id="current-exercise-name">Right Arm Curl</span>
                   </div>
                   <button id="open-exercise-picker" class="btn secondary" style="margin-left: 8px;">수행 동작 선택</button>
@@ -120,7 +120,7 @@
                   <div class="status-row">
                     <div id="status-dot" class="status-dot"></div>
                     <div class="status-text">
-                      상태: <strong id="status-label">-</strong>
+                      <span id="status-label-prefix">상태:</span> <strong id="status-label">-</strong>
                       <span id="status-detail" style="margin-left: 4px; color: var(--muted);"></span>
                     </div>
                   </div>

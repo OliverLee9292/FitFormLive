@@ -58,12 +58,15 @@ const baseExercises = {
   right_curl: {
     name: "Right Arm Curl",
     type: "기구운동",
+    typeEn: "Equipment",
     shortDesc: "오른팔로 덤벨을 들어 이두근을 집중적으로 단련합니다.",
+    shortDescEn: "Right arm dumbbell curl focusing on biceps.",
     angleJoints: [KEY.rightShoulder, KEY.rightElbow, KEY.rightWrist],
     angleJointsBP: [KEY_BP.rightShoulder, KEY_BP.rightElbow, KEY_BP.rightWrist],
     thresholds: { up: 155, down: 60 },
     start: {
       hint: "오른팔을 옆으로 내려 완전히 편 상태로 덤벨을 들고 서세요.",
+      hint_en: "Stand with your right arm straight down at your side holding a dumbbell.",
       check(angle) {
         return angle > 150;
       },
@@ -93,12 +96,15 @@ const baseExercises = {
   left_curl: {
     name: "Left Arm Curl",
     type: "기구운동",
+    typeEn: "Equipment",
     shortDesc: "왼팔 이두근을 강화하는 단일 관절 덤벨 운동입니다.",
+    shortDescEn: "Left arm dumbbell curl focusing on biceps.",
     angleJoints: [KEY.leftShoulder, KEY.leftElbow, KEY.leftWrist],
     angleJointsBP: [KEY_BP.leftShoulder, KEY_BP.leftElbow, KEY_BP.leftWrist],
     thresholds: { up: 155, down: 60 },
     start: {
       hint: "왼팔을 옆으로 내려 완전히 편 상태로 덤벨을 들고 서세요.",
+      hint_en: "Stand with your left arm straight down at your side holding a dumbbell.",
       check(angle) {
         return angle > 150;
       },
@@ -128,7 +134,9 @@ const baseExercises = {
   squat: {
     name: "Squat",
     type: "맨몸운동",
+    typeEn: "Bodyweight",
     shortDesc: "하체 전반과 코어를 동시에 사용하는 대표적인 맨몸 스쿼트입니다.",
+    shortDescEn: "Bodyweight squat working legs and core.",
     angleJoints: [KEY.leftHip, KEY.leftKnee, KEY.leftAnkle],
     angleJointsBP: [KEY_BP.leftHip, KEY_BP.leftKnee, KEY_BP.leftAnkle],
     thresholds: { up: 165, down: 100 },
@@ -164,6 +172,7 @@ const baseExercises = {
     },
     start: {
       hint: "발을 어깨너비로 벌리고 상체를 세운 상태로 똑바로 서세요.",
+      hint_en: "Stand tall with feet shoulder-width apart and chest up.",
       check(angle) {
         return angle > 165;
       },
@@ -200,12 +209,15 @@ const baseExercises = {
   lunge_right: {
     name: "Right Lunge",
     type: "맨몸운동",
+    typeEn: "Bodyweight",
     shortDesc: "오른발을 내딛으며 하체 균형과 근력을 기르는 런지 동작입니다.",
+    shortDescEn: "Right-foot forward lunge for balance and leg strength.",
     angleJoints: [KEY.rightHip, KEY.rightKnee, KEY.rightAnkle],
     angleJointsBP: [KEY_BP.rightHip, KEY_BP.rightKnee, KEY_BP.rightAnkle],
     thresholds: { up: 165, down: 95 },
     start: {
       hint: "오른발을 앞으로 내딛고 상체를 세운 상태로 준비하세요.",
+      hint_en: "Step forward with the right foot, keep torso upright, and hold the stance.",
       check(angle) {
         return angle > 165;
       },
@@ -242,12 +254,15 @@ const baseExercises = {
   lunge_left: {
     name: "Left Lunge",
     type: "맨몸운동",
+    typeEn: "Bodyweight",
     shortDesc: "왼발을 내딛으며 하체 균형과 근력을 기르는 런지 동작입니다.",
+    shortDescEn: "Left-foot forward lunge for balance and leg strength.",
     angleJoints: [KEY.leftHip, KEY.leftKnee, KEY.leftAnkle],
     angleJointsBP: [KEY_BP.leftHip, KEY_BP.leftKnee, KEY_BP.leftAnkle],
     thresholds: { up: 165, down: 95 },
     start: {
       hint: "왼발을 앞으로 내딛고 상체를 세운 상태로 준비하세요.",
+      hint_en: "Step forward with the left foot, keep torso upright, and hold the stance.",
       check(angle) {
         return angle > 165;
       },
@@ -284,7 +299,9 @@ const baseExercises = {
   pushup: {
     name: "Push-up",
     type: "맨몸운동",
+    typeEn: "Bodyweight",
     shortDesc: "가슴, 어깨, 삼두근을 동시에 사용하는 대표적인 푸시업 동작입니다.",
+    shortDescEn: "Standard push-up hitting chest, shoulders, triceps.",
     angleJoints: [KEY.rightShoulder, KEY.rightElbow, KEY.rightWrist],
     angleJointsBP: [KEY_BP.rightShoulder, KEY_BP.rightElbow, KEY_BP.rightWrist],
     thresholds: { up: 165, down: 80 },
@@ -320,6 +337,7 @@ const baseExercises = {
     },
     start: {
       hint: "팔을 완전히 펴고 플랭크 자세를 유지하세요.",
+      hint_en: "Hold a plank with arms extended and body straight.",
       check(angle) {
         return angle > 160;
       },
@@ -349,7 +367,9 @@ const baseExercises = {
   shoulder_press: {
     name: "Shoulder Press",
     type: "기구운동",
+    typeEn: "Equipment",
     shortDesc: "덤벨을 위로 밀어 올리며 어깨와 상체를 강화하는 운동입니다.",
+    shortDescEn: "Dumbbell shoulder press to strengthen shoulders and upper body.",
     angleJoints: [KEY.rightShoulder, KEY.rightElbow, KEY.rightWrist],
     angleJointsBP: [KEY_BP.rightShoulder, KEY_BP.rightElbow, KEY_BP.rightWrist],
     thresholds: { up: 160, down: 90 },
@@ -385,6 +405,7 @@ const baseExercises = {
     },
     start: {
       hint: "덤벨을 귀 옆 정도 높이로 들고, 팔꿈치가 몸 앞에 오도록 유지하세요.",
+      hint_en: "Hold dumbbells near ear level, elbows slightly forward.",
       check(angle) {
         return angle >= 90 && angle <= 130;
       },
@@ -478,6 +499,13 @@ export function isStartReady(exercise, angle, keypoints) {
     return exercise.start.check(angle, keypoints);
   }
   return angle > (exercise.thresholds?.up || 140) - 5;
+}
+
+export function getStartHint(exercise, lang = "ko") {
+  if (lang === "en" && exercise.start?.hint_en) {
+    return exercise.start.hint_en;
+  }
+  return exercise.start?.hint || "";
 }
 
 export function updateRepsForExercise(exercise, angle) {
