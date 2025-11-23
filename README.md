@@ -10,12 +10,13 @@ Camera-based personal training experience built for Microsoft AI School project 
 
 ## Features
 
-- **MoveNet (TF.js)** for Training/Challenge: real-time rep counting, HUD, and feedback.
-- **BlazePose GHUM 3D (MediaPipe runtime)** for Avatar mode: 33-keypoint 3D coordinates retargeted to a Three.js avatar, with pose overlay.
-- **Challenge mode** (timed reps) and **Developer mode** (ML pipeline overview).
-- **Avatar view / Camera view toggle**: camera view uses normal (non-mirrored) orientation; avatar view uses mirrored rendering.
-- **Offline TTS** via browser `speechSynthesis` or pre-recorded audio clips (no server token).
-- Exercise quality metrics (primary/secondary joints) for post-workout summaries.
+- **Pose models**
+  - MoveNet Lightning (TF.js) for Training/Challenge (17 keypoints; fast on-device).
+  - BlazePose GHUM 3D (MediaPipe runtime) for Avatar mode (33 keypoints + 3D coords) driving the avatar and pose overlay.
+- **Exercise definitions**: Per-exercise thresholds, start posture checks, feedback strings, and quality targets for curls, squats, lunges, push-ups, shoulder press (`web/js/workout.js`).
+- **TTS**: Browser `speechSynthesis` + optional pre-recorded MP3s (`web/audio/tts/...`), generation via `python tools/generate_tts.py`.
+- **Avatar**: Three.js + GLTF retargeting BlazePose 3D keypoints to bones; mirrored in avatar view, non-mirrored in camera view.
+- **ML classification-ready**: Quality metric helpers (`captureQualityTargets`, `summarizeQualityMetrics`) for future supervised models.
 
 ## Motivation
 - Modern lifestyles often lead to inactivity, and beginners (“hellinis”) struggle to start with proper form.
@@ -72,10 +73,10 @@ Refer to `.github/workflows/azure-static-web-apps-*.yml` for the GitHub Actions 
 - Full-body detection uses stability frames and grace timers to control warnings/pauses.
 
 ## Mode Guide (Menus)
-- **Training mode**: Single-user workout with rep counting, HUD, and form feedback using MoveNet.
-- **Avatar mode**: BlazePose 3D drives a mirrored Three.js avatar; camera view toggle shows pose lines and rep logic from BlazePose.
-- **Challenge mode**: Timed rep challenges with HUD timers; uses MoveNet for counting.
-- **Developer mode**: Documentation of the ML stack, features, and links to training notebooks/code.
+- **Training mode**: MoveNet-based rep counting, HUD (reps/angle/FPS/status), start-position check, exercise-specific feedback, mirrored camera overlay.
+- **Avatar mode**: BlazePose GHUM 3D for rep logic and pose overlay (camera view non-mirrored), plus a mirrored Three.js avatar view; full-body detection gates countdown/start.
+- **Challenge mode**: MoveNet-based timed rep challenge with selectable duration and HUD timer.
+- **Developer mode**: ML stack overview, feature/label notes, links to training notebooks/code.
 
 ## Quality Metrics
 
