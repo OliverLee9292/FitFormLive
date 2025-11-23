@@ -35,7 +35,7 @@ FitFormLive/
 │       ├── workout.js   # Exercise definitions & state (MoveNet + BlazePose indices)
 │       ├── pose.js      # Pose detectors (MoveNet/BlazePose), keypoint normalization
 │       ├── avatar.js    # Three.js avatar driver (BlazePose 33 → bones)
-│       ├── tts.js       # Azure Speech bindings
+│       ├── tts.js       # Offline TTS (speechSynthesis + local audio)
 │       ├── challenge.js # Timer logic
 │       └── ui.js        # HUD rendering helpers
 └── .github/workflows/   # Azure Static Web App CI (GitHub Actions)
