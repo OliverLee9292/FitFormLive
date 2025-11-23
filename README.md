@@ -1,8 +1,14 @@
 # FIT FORM LIVE
 
-Camera-based personal training experience built for Microsoft AI School project team 7.
+FitForm Live is a browser-based AI personal training experience that runs entirely on-device.
+It combines real-time pose estimation (MoveNet/BlazePose), 3D avatar retargeting, and voice coaching (TTS) into a single lightweight web app—no installation, no backend inference, and zero video upload.
 
-[Live Demo](https://wonderful-ocean-031249900.3.azurestaticapps.net/)
+[Live Demo](https://icy-ocean-022364500.3.azurestaticapps.net)
+
+## Motivation
+- Modern lifestyles often lead to inactivity, and beginners struggle to start with proper form.
+- A camera plus computer vision lowers the barrier: instant feedback, guided reps, and playful 3D avatar mirroring.
+- On-device models (MoveNet/BlazePose) keep latency low and protect privacy while delivering coach-like guidance.
 
 ## Timeline
 - Team sprint: 2025-11-11 (Tue) ~ 2025-11-20 (Thu)
@@ -18,43 +24,30 @@ Camera-based personal training experience built for Microsoft AI School project 
 - **Avatar**: Three.js + GLTF retargeting BlazePose 3D keypoints to bones; mirrored in avatar view, non-mirrored in camera view.
 - **ML classification-ready**: Quality metric helpers (`captureQualityTargets`, `summarizeQualityMetrics`) for future supervised models.
 
-## Motivation
-- Modern lifestyles often lead to inactivity, and beginners (“hellinis”) struggle to start with proper form.
-- A camera plus computer vision lowers the barrier: instant feedback, guided reps, and playful 3D avatar mirroring.
-- On-device models (MoveNet/BlazePose) keep latency low and protect privacy while delivering coach-like guidance.
+
 
 ## Directory Structure
 
 ```
 FitFormLive/
 ├── web/
-│   ├── index.html       # Main SPA
+│   ├── index.html           # Main SPA
 │   ├── css/styles.css
-│   └── js/              # Modularized client code
-│       ├── main.js      # App orchestration + mode switching, camera loop
-│       ├── workout.js   # Exercise definitions & state (MoveNet + BlazePose indices)
-│       ├── pose.js      # Pose detectors (MoveNet/BlazePose), keypoint normalization
-│       ├── avatar.js    # Three.js avatar driver (BlazePose 33 → bones)
-│       ├── tts.js       # Offline TTS (speechSynthesis + local audio)
-│       ├── challenge.js # Timer logic
-│       └── ui.js        # HUD rendering helpers
-└── .github/workflows/   # Azure Static Web App CI (GitHub Actions)
+│   ├── audio/               # Pre-generated TTS assets (ko/en)
+│   ├── js/                  # Modularized client code
+│   │   ├── main.js          # App orchestration + mode switching, camera loop
+│   │   ├── workout.js       # Exercise definitions & state (MoveNet + BlazePose indices)
+│   │   ├── pose.js          # Pose detectors (MoveNet/BlazePose), keypoint normalization
+│   │   ├── avatar.js        # Three.js avatar driver (BlazePose 33 → bones)
+│   │   ├── tts.js           # Offline TTS (speechSynthesis + local audio)
+│   │   ├── challenge.js     # Timer logic
+│   │   └── ui.js            # HUD rendering helpers
+│   └── models/              # GLB avatar models
+├── tools/
+│   ├── generate_tts.py      # ko TTS pack generator (edge-tts or Azure speech service)
+│   └── generate_tts_en.py   # en TTS pack generator (edge-tts)
+└── .github/workflows/       # Azure Static Web App CI (GitHub Actions)
 ```
-
-## Local Development
-
-1. Install dependencies for the Azure Function (optional, only if you test TTS backend locally):
-   ```bash
-   cd api
-   npm install
-   ```
-2. Set environment variables (in `local.settings.json` or shell):
-   - `SPEECH_KEY`
-   - `SPEECH_REGION`
-3. Serve the `web/` folder using a static server (e.g. `npx serve web`, VS Code Live Server, etc.).
-4. Open `http://localhost:<port>/index.html`, allow camera permissions, and test the modes.
-
-> MoveNet is loaded via CDN; no build step is required.
 
 ## Deployment (Azure Static Web App)
 
@@ -90,6 +83,7 @@ Refer to `.github/workflows/azure-static-web-apps-*.yml` for the GitHub Actions 
   python tools/generate_tts.py
   ```
   This writes files to `web/audio/tts/…` so the app can play local audio instead of cloud TTS.
+- English pack: `python tools/generate_tts_en.py` outputs to `web/audio/tts_en/…` using `en-US-AnaNeural`.
 
 ## License & Third‑Party Notices
 
@@ -105,7 +99,7 @@ Refer to `.github/workflows/azure-static-web-apps-*.yml` for the GitHub Actions 
 ```
 MIT License
 
-Copyright (c) 2024 FIT FORM LIVE
+Copyright (c) 2025 FIT FORM LIVE
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

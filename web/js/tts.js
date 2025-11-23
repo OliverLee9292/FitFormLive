@@ -3,6 +3,7 @@ let voiceReady = false;
 let preferredVoice = null;
 let countdownAudio = null;
 const audioCache = {};
+let ttsLanguage = "ko"; // "ko" or "en"
 
 const KOREAN_UNITS = [
   "",
@@ -34,11 +35,19 @@ function getKoreanCountWord(n) {
   return String(n);
 }
 
+function getCountWord(n) {
+  if (ttsLanguage === "en") {
+    return String(n);
+  }
+  return getKoreanCountWord(n);
+}
+
 function loadVoice() {
   if (!window.speechSynthesis) return;
   const voices = speechSynthesis.getVoices();
-  const ko = voices.filter((v) => v.lang && v.lang.toLowerCase().startsWith("ko"));
-  preferredVoice = ko[0] || voices[0] || null;
+  const desiredPrefix = ttsLanguage === "en" ? "en" : "ko";
+  const filtered = voices.filter((v) => v.lang && v.lang.toLowerCase().startsWith(desiredPrefix));
+  preferredVoice = filtered[0] || voices[0] || null;
   voiceReady = true;
 }
 
@@ -59,7 +68,7 @@ function speak(text) {
   if (!voiceReady) loadVoice();
   const utter = new SpeechSynthesisUtterance(text);
   if (preferredVoice) utter.voice = preferredVoice;
-  utter.lang = preferredVoice?.lang || "ko-KR";
+  utter.lang = preferredVoice?.lang || (ttsLanguage === "en" ? "en-US" : "ko-KR");
   speechSynthesis.cancel();
   speechSynthesis.speak(utter);
 }
@@ -72,21 +81,27 @@ function playLocal(path) {
 }
 
 export function playAvatarPhrase(key, fallbackText) {
-  const path = `audio/tts/avatar/${key}.mp3`;
+  const base = ttsLanguage === "en" ? "audio/tts_en/avatar" : "audio/tts/avatar";
+  const path = `${base}/${key}.mp3`;
   playLocal(path).catch(() => fallbackText && speak(fallbackText));
 }
 
 export function playCountTTS(rep) {
   if (rep <= 0 || rep > 999) return;
-  const path = `audio/tts/count/${rep}.mp3`;
-  playLocal(path).catch(() => speak(getKoreanCountWord(rep) + "!"));
+  const base = ttsLanguage === "en" ? "audio/tts_en/count" : "audio/tts/count";
+  const path = `${base}/${rep}.mp3`;
+  playLocal(path).catch(() => speak(getCountWord(rep) + "!"));
 }
 
 export function playCountdownPrompt() {
   if (!countdownAudio) {
-    countdownAudio = new Audio("audio/tts/countdown.mp3");
+    const file = ttsLanguage === "en" ? "audio/tts_en/countdown.mp3" : "audio/tts/countdown.mp3";
+    countdownAudio = new Audio(file);
   }
-  countdownAudio.play().catch(() => speak("5초 후에 시작합니다."));
+  countdownAudio.play().catch(() => {
+    const fallback = ttsLanguage === "en" ? "Starting in 5 seconds." : "5초 후에 시작합니다.";
+    speak(fallback);
+  });
 }
 
 export function speakText(text) {
@@ -95,4 +110,12 @@ export function speakText(text) {
 
 export function setTTSEnabled(value) {
   ttsEnabled = Boolean(value);
+}
+
+export function setTtsLanguage(lang) {
+  ttsLanguage = lang === "en" ? "en" : "ko";
+  voiceReady = false;
+  preferredVoice = null;
+  countdownAudio = null;
+  loadVoice();
 }

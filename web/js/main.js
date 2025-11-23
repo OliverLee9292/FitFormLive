@@ -27,6 +27,8 @@ import {
 } from "./avatar.js";
 import { renderExercisePicker, updateHud, showSummaryOverlay, hideSummaryOverlay, setActiveMenu } from "./ui.js";
 import { setChallengeDuration, startChallengeTimer, updateChallengeTimer, resetChallenge } from "./challenge.js";
+import { initLanguage, setLanguage, getLanguage, t, applyStaticText } from "./i18n.js";
+import { setTtsLanguage } from "./tts.js";
 
 const videoEl = document.getElementById("video");
 const canvasEl = document.getElementById("canvas");
@@ -60,6 +62,7 @@ const cameraLayer = document.getElementById("camera-layer");
 const challengeRemainingEl = document.getElementById("challenge-remaining");
 const challengeView = document.getElementById("challenge-view");
 const summaryCloseHandler = () => hideSummaryOverlay(summaryOverlayEl);
+const langToggleBtn = document.getElementById("lang-toggle");
 
 const trainingView = document.getElementById("training-view");
 const avatarView = document.getElementById("avatar-view");
@@ -158,9 +161,9 @@ function getDesiredDetectorType() {
 function setModelLabel(type) {
   if (!modelLabelEl) return;
   if (type === DETECTOR_TYPES.BLAZEPOSE) {
-    modelLabelEl.textContent = "BlazePose GHUM 3D · On-device";
+    modelLabelEl.textContent = t("model_blazepose", "BlazePose GHUM 3D · On-device");
   } else {
-    modelLabelEl.textContent = "MoveNet Lightning · On-device";
+    modelLabelEl.textContent = t("model_movenet", "MoveNet Lightning · On-device");
   }
 }
 
@@ -173,7 +176,7 @@ function applyAvatarViewMode(mode) {
     applyMirror(false);
     if (toggleOverlayBtn) {
       toggleOverlayBtn.style.display = "inline-flex";
-      toggleOverlayBtn.textContent = state.showSkeleton ? "포즈선 끄기" : "포즈선 켜기";
+      toggleOverlayBtn.textContent = state.showSkeleton ? t("btn_overlay_off", "Hide Skeleton") : t("btn_overlay_on", "Show Skeleton");
     }
     if (toggleAvatarViewBtn) toggleAvatarViewBtn.textContent = "아바타 보기";
     if (avatarWarningEl) avatarWarningEl.style.display = "none";
@@ -184,7 +187,7 @@ function applyAvatarViewMode(mode) {
     applyMirror(true);
     if (toggleOverlayBtn) {
       toggleOverlayBtn.style.display = "none";
-      toggleOverlayBtn.textContent = state.showSkeleton ? "포즈선 끄기" : "포즈선 켜기";
+      toggleOverlayBtn.textContent = state.showSkeleton ? t("btn_overlay_off", "Hide Skeleton") : t("btn_overlay_on", "Show Skeleton");
     }
     if (toggleAvatarViewBtn) toggleAvatarViewBtn.textContent = "카메라 보기";
     if (avatarWarningEl) avatarWarningEl.style.display = "flex";
@@ -332,10 +335,10 @@ async function renderLoop() {
         reps: state.reps,
         angle: angleForHud,
         fps: state.fps,
-        label: angle == null ? "Detecting pose" : ok ? "Hold start position" : "Set start position",
+        label: angle == null ? t("pose_detecting_label", "Detecting pose") : ok ? "Hold start position" : "Set start position",
         detail:
           angle == null
-            ? "관절 포인트를 인식 중입니다. 전신이 보이도록 한 걸음 물러서 주세요."
+            ? t("status_pose_detecting")
             : ex.start?.hint || "준비자세를 맞춰 주세요. (정면을 보고 화면 중앙에 서세요.)",
         good: ok,
       });
@@ -354,8 +357,8 @@ async function renderLoop() {
         reps: state.reps,
         angle: angleForHud,
         fps: state.fps,
-        label: "전신 인식 안 됨",
-        detail: "카메라와 충분한 거리를 두어 전신이 모두 보이게 서주세요.",
+        label: t("fullbody_lost_label", "Full body not detected"),
+        detail: t("status_wait_fullbody"),
         good: false,
       });
     } else {
@@ -394,7 +397,7 @@ async function renderLoop() {
   } else {
     ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
     statusLabel.textContent = "No pose";
-    statusDetail.textContent = "사람이 화면 안에 있도록 위치를 조정하세요.";
+    statusDetail.textContent = t("status_no_pose");
     statusDot.classList.remove("good", "bad");
     handleFullBodyState(null);
   }
@@ -423,14 +426,14 @@ async function startCamera() {
 
     state.running = true;
     state.lastFrameTime = performance.now();
-    toggleCameraBtn.textContent = "카메라 정지";
+    toggleCameraBtn.textContent = t("btn_camera_stop", "Stop Camera");
     toggleCameraBtn.disabled = false;
     renderLoop();
     speakText("카메라가 시작되었습니다. 화면 중앙에 서서 자세를 맞춰 주세요.");
   } catch (err) {
     console.error(err);
     alert("카메라 접근 중 오류가 발생했습니다. 브라우저 권한을 확인하세요.");
-    toggleCameraBtn.textContent = "카메라 시작";
+    toggleCameraBtn.textContent = t("btn_camera_start", "Start Camera");
     toggleCameraBtn.disabled = false;
   }
 }
@@ -451,7 +454,7 @@ function stopCamera() {
   }
   state.detector = null;
   ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
-  toggleCameraBtn.textContent = "카메라 시작";
+  toggleCameraBtn.textContent = t("btn_camera_start", "Start Camera");
   toggleCameraBtn.disabled = false;
 }
 
@@ -465,21 +468,21 @@ function startCountdownAndWorkout() {
   if (!state.running || state.countdownActive) return;
 
   if (state.currentMode === "challenge" && !state.challengeDurationMinutes) {
-    statusLabel.textContent = "시간 선택 필요";
+    statusLabel.textContent = t("challenge_time_needed", "Select duration first");
     statusDetail.textContent = "도전 모드에서는 먼저 도전 시간을 선택해 주세요.";
     speakText("도전 시간을 먼저 선택해 주세요.");
     return;
   }
 
   if (startWorkoutBtn) {
-    startWorkoutBtn.textContent = state.currentMode === "challenge" ? "도전 중지" : "운동 정지";
+    startWorkoutBtn.textContent = state.currentMode === "challenge" ? t("btn_challenge_stop", "Stop Challenge") : t("btn_stop", "Stop Workout");
   }
 
   resetCounter({ keepButtonLabel: true });
   state.countdownActive = true;
   state.countdownValue = 5;
-  statusLabel.textContent = "시작 준비";
-  statusDetail.textContent = "5초 후에 시작합니다.";
+  statusLabel.textContent = t("countdown_label", "Get Ready");
+  statusDetail.textContent = t("countdown_detail", "Starting in 5 seconds.");
   playCountdown();
 
   if (state.countdownTimerId) {
@@ -496,9 +499,9 @@ function startCountdownAndWorkout() {
       countdownEl.style.opacity = 0;
       state.countdownActive = false;
       state.workoutStarted = true;
-      statusLabel.textContent = state.currentMode === "challenge" ? "도전 시작" : "운동 시작";
+      statusLabel.textContent = state.currentMode === "challenge" ? t("btn_challenge_start", "Start Challenge") : t("btn_start", "Start Workout");
       statusDetail.textContent = "";
-      speakText("시작합니다.");
+      speakText(t("start_message", "Starting now."));
       if (state.currentMode === "challenge") {
         startChallengeTimer();
       } else {
@@ -526,15 +529,15 @@ function stopWorkout(auto = false) {
   state.fullBodyDetected = false;
   countdownEl.style.opacity = 0;
   if (startWorkoutBtn) {
-    startWorkoutBtn.textContent = state.currentMode === "challenge" ? "도전 시작" : "운동 시작";
+    startWorkoutBtn.textContent = state.currentMode === "challenge" ? t("btn_challenge_start", "Start Challenge") : t("btn_start", "Start Workout");
   }
 
   if (auto) {
-    statusLabel.textContent = "목표 완료";
-    statusDetail.textContent = "30회를 완료했습니다. 요약을 확인하세요.";
+    statusLabel.textContent = t("goal_done", "Goal completed");
+    statusDetail.textContent = t("summary_auto", "Completed 30 reps. Check the summary.");
   } else {
-    statusLabel.textContent = "운동 정지";
-    statusDetail.textContent = "다시 시작하려면 '운동 시작'을 누르세요.";
+    statusLabel.textContent = t("btn_stop", "Stop Workout");
+    statusDetail.textContent = t("summary_stop", "Press 'Start Workout' to begin again.");
   }
 
   const summaryData = buildSummary();
@@ -565,12 +568,12 @@ function handleMenuChange(target) {
     state.showSkeleton = true;
     applyMirror(true);
     toggleOverlayBtn.style.display = "inline-flex";
-    toggleOverlayBtn.textContent = "포즈선 끄기";
+    toggleOverlayBtn.textContent = t("btn_overlay_off", "Hide Skeleton");
     if (avatarContainer) avatarContainer.style.display = "none";
     if (cameraLayer) cameraLayer.style.display = "block";
     stopAvatarAnimation();
     resetChallenge(challengeRemainingEl);
-    if (startWorkoutBtn) startWorkoutBtn.textContent = "운동 시작";
+    if (startWorkoutBtn) startWorkoutBtn.textContent = t("btn_start", "Start Workout");
   } else if (target === menuAvatarBtn) {
     trainingView.style.display = "block";
     avatarView.style.display = "block";
@@ -600,7 +603,7 @@ function handleMenuChange(target) {
       window.__avatarInitialized = true;
     }
     startAvatarAnimation();
-    if (startWorkoutBtn) startWorkoutBtn.textContent = "운동 시작";
+    if (startWorkoutBtn) startWorkoutBtn.textContent = t("btn_start", "Start Workout");
     resetChallenge(challengeRemainingEl);
   } else if (target === menuChallengeBtn) {
     trainingView.style.display = "block";
@@ -615,7 +618,7 @@ function handleMenuChange(target) {
     state.showSkeleton = true;
     applyMirror(true);
     toggleOverlayBtn.style.display = "inline-flex";
-    toggleOverlayBtn.textContent = "포즈선 끄기";
+    toggleOverlayBtn.textContent = t("btn_overlay_off", "Hide Skeleton");
     if (avatarContainer) avatarContainer.style.display = "none";
     if (cameraLayer) cameraLayer.style.display = "block";
     stopAvatarAnimation();
@@ -634,7 +637,7 @@ function handleMenuChange(target) {
     if (toggleAvatarViewBtn) toggleAvatarViewBtn.style.display = "none";
     stopAvatarAnimation();
     resetChallenge(challengeRemainingEl);
-    if (startWorkoutBtn) startWorkoutBtn.textContent = "운동 시작";
+    if (startWorkoutBtn) startWorkoutBtn.textContent = t("btn_start", "Start Workout");
     applyMirror(true);
   }
   setModelLabel(getDesiredDetectorType());
@@ -648,7 +651,7 @@ function handleMenuChange(target) {
 function initEventListeners() {
   toggleOverlayBtn.addEventListener("click", () => {
     state.showSkeleton = !state.showSkeleton;
-    toggleOverlayBtn.textContent = state.showSkeleton ? "포즈선 끄기" : "포즈선 켜기";
+    toggleOverlayBtn.textContent = state.showSkeleton ? t("btn_overlay_off", "Hide Skeleton") : t("btn_overlay_on", "Show Skeleton");
     if (!state.showSkeleton) {
       ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
     }
@@ -686,10 +689,10 @@ function initEventListeners() {
       state.waitingForFullBodyStart = true;
       state.workoutPausedForNoBody = false;
       state.fullBodyDetected = false;
-      statusLabel.textContent = "전신 인식 대기";
-      statusDetail.textContent = "카메라와 충분한 거리를 두어 전신이 모두 보이게 서주세요.";
+      statusLabel.textContent = t("fullbody_wait_label", "Waiting for full body");
+      statusDetail.textContent = t("status_wait_fullbody");
       if (avatarWarningEl) avatarWarningEl.style.display = "flex";
-      if (startWorkoutBtn) startWorkoutBtn.textContent = "운동 정지";
+      if (startWorkoutBtn) startWorkoutBtn.textContent = t("btn_stop", "Stop Workout");
       playAvatarPhrase(
         "avatar_start_warning",
         "아바타 모드에서는 전신이 화면에 모두 들어와야 합니다. 카메라와 충분한 거리를 두어주세요."
@@ -750,7 +753,9 @@ function initEventListeners() {
 }
 
 function init() {
+  initLanguage();
   initSpeechOnce();
+  setTtsLanguage(getLanguage());
   setAvatarExerciseKey(state.currentKey);
   setModelLabel(getDesiredDetectorType());
   updateCurrentExerciseLabel();
@@ -759,6 +764,17 @@ function init() {
   }
   handleMenuChange(menuTrainingBtn);
   initEventListeners();
+
+  if (langToggleBtn) {
+    langToggleBtn.addEventListener("click", () => {
+      const next = getLanguage() === "ko" ? "en" : "ko";
+      setLanguage(next);
+      setTtsLanguage(next);
+      applyStaticText();
+      setModelLabel(getDesiredDetectorType());
+      toggleCameraBtn.textContent = state.running ? t("btn_camera_stop", "Stop Camera") : t("btn_camera_start", "Start Camera");
+    });
+  }
 }
 
 window.addEventListener("DOMContentLoaded", init);
