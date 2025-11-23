@@ -40,9 +40,10 @@ COUNTDOWN_TEXT = "5초 후에 시작합니다."
 
 COUNT_START = int(os.getenv("TTS_COUNT_START", "1"))
 COUNT_END = int(os.getenv("TTS_COUNT_END", "999"))
-CONCURRENCY = int(os.getenv("TTS_CONCURRENCY", "2"))  # lower to avoid 429
+CONCURRENCY = int(os.getenv("TTS_CONCURRENCY", "1"))  # safer default to avoid 429
 RETRIES = int(os.getenv("TTS_RETRIES", "4"))
 BACKOFF_BASE = float(os.getenv("TTS_BACKOFF_BASE", "1.5"))
+MAX_PASSES = int(os.getenv("TTS_MAX_PASSES", "3"))
 PROVIDER = os.getenv("TTS_PROVIDER", "edge").lower()  # "edge" or "azure"
 AZURE_KEY = os.getenv("AZURE_SPEECH_KEY")
 AZURE_REGION = os.getenv("AZURE_SPEECH_REGION")
@@ -140,6 +141,7 @@ async def generate_counts():
         outfile = COUNT_DIR / f"{n}.mp3"
         tasks.append(synthesize(text, outfile, sem=sem))
     await asyncio.gather(*tasks)
+    return [f for f in range(COUNT_START, COUNT_END + 1) if not (COUNT_DIR / f"{f}.mp3").exists()]
 
 
 async def generate_avatar_phrases():
@@ -149,20 +151,50 @@ async def generate_avatar_phrases():
         outfile = AVATAR_DIR / f"{key}.mp3"
         tasks.append(synthesize(text, outfile, sem=sem))
     await asyncio.gather(*tasks)
+    return [k for k in AVATAR_PHRASES.keys() if not (AVATAR_DIR / f"{k}.mp3").exists()]
 
 
 async def generate_countdown():
     sem = asyncio.Semaphore(CONCURRENCY)
     await synthesize(COUNTDOWN_TEXT, OUTPUT_ROOT / "countdown.mp3", sem=sem)
+    return not (OUTPUT_ROOT / "countdown.mp3").exists()
 
 
 async def main():
     ensure_dirs()
-    await asyncio.gather(
-        generate_counts(),
-        generate_avatar_phrases(),
-        generate_countdown(),
-    )
+    missing_counts = list(range(COUNT_START, COUNT_END + 1))
+    missing_avatar = list(AVATAR_PHRASES.keys())
+    missing_countdown = True
+
+    for p in range(1, MAX_PASSES + 1):
+        print(f"=== Pass {p}/{MAX_PASSES} ===")
+        if missing_counts:
+          # adjust range to missing
+          tasks = [synthesize(f"{n}회", COUNT_DIR / f"{n}.mp3", sem=asyncio.Semaphore(CONCURRENCY)) for n in missing_counts]
+          await asyncio.gather(*tasks)
+        missing_counts = [n for n in range(COUNT_START, COUNT_END + 1) if not (COUNT_DIR / f"{n}.mp3").exists()]
+
+        if missing_avatar:
+          tasks = [synthesize(AVATAR_PHRASES[k], AVATAR_DIR / f"{k}.mp3", sem=asyncio.Semaphore(CONCURRENCY)) for k in missing_avatar]
+          await asyncio.gather(*tasks)
+        missing_avatar = [k for k in AVATAR_PHRASES.keys() if not (AVATAR_DIR / f"{k}.mp3").exists()]
+
+        if missing_countdown:
+          missing_countdown = await generate_countdown()
+
+        if not missing_counts and not missing_avatar and not missing_countdown:
+            break
+
+    if missing_counts or missing_avatar or missing_countdown:
+        print("⚠ Some files are still missing after retries.")
+        if missing_counts:
+            print(f"Missing counts: {missing_counts[:20]}{'...' if len(missing_counts)>20 else ''}")
+        if missing_avatar:
+            print(f"Missing avatar phrases: {missing_avatar}")
+        if missing_countdown:
+            print("Missing countdown.mp3")
+    else:
+        print("✔ All TTS files generated.")
 
 
 if __name__ == "__main__":

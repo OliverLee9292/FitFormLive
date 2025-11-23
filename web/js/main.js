@@ -401,13 +401,13 @@ async function renderLoop() {
     }
   } else {
     ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
-    statusLabel.textContent = "No pose";
+    statusLabel.textContent = t("status_no_pose_label", "No pose");
     statusDetail.textContent = t("status_no_pose");
     statusDot.classList.remove("good", "bad");
     handleFullBodyState(null);
   }
 
-  updateChallengeTimer(challengeRemainingEl, () => stopWorkout(true));
+  updateChallengeTimer(challengeRemainingEl, () => stopWorkout({ reason: "challenge_complete" }));
   state.animationId = requestAnimationFrame(renderLoop);
 }
 
@@ -517,14 +517,18 @@ function startCountdownAndWorkout() {
   }, 1000);
 }
 
-function stopWorkout(auto = false) {
+function stopWorkout(options = {}) {
+  const opts = typeof options === "boolean" ? { auto: options } : options;
+  const { auto = false, reason = "manual", skipSummary = false } = opts;
   if (state.countdownTimerId) {
     clearInterval(state.countdownTimerId);
     state.countdownTimerId = null;
   }
   state.challengeActive = false;
   if (challengeRemainingEl) {
-    challengeRemainingEl.textContent = "-";
+    if (reason !== "challenge_complete") {
+      challengeRemainingEl.textContent = "-";
+    }
   }
   state.workoutStarted = false;
   state.countdownActive = false;
@@ -537,12 +541,23 @@ function stopWorkout(auto = false) {
     startWorkoutBtn.textContent = state.currentMode === "challenge" ? t("btn_challenge_start", "Start Challenge") : t("btn_start", "Start Workout");
   }
 
-  if (auto) {
+  if (reason === "challenge_complete") {
+    statusLabel.textContent = t("challenge_done_label", "Challenge finished");
+    statusDetail.textContent = t("challenge_done_detail", "Time is up. Check the summary.");
+  } else if (reason === "cancel_before_start") {
+    statusLabel.textContent = t("cancelled_label", "Cancelled");
+    statusDetail.textContent = t("cancelled_detail", "Countdown cancelled. Press start to try again.");
+  } else if (auto) {
     statusLabel.textContent = t("goal_done", "Goal completed");
     statusDetail.textContent = t("summary_auto", "Completed 30 reps. Check the summary.");
   } else {
     statusLabel.textContent = t("btn_stop", "Stop Workout");
     statusDetail.textContent = t("summary_stop", "Press 'Start Workout' to begin again.");
+  }
+
+  if (skipSummary) {
+    hideSummaryOverlay(summaryOverlayEl);
+    return;
   }
 
   const summaryData = buildSummary();
@@ -676,12 +691,12 @@ function initEventListeners() {
   });
 
   startWorkoutBtn.addEventListener("click", () => {
-    if (
-      state.workoutStarted ||
-      state.countdownActive ||
-      state.waitingForFullBodyStart ||
-      state.workoutPausedForNoBody
-    ) {
+    if (state.countdownActive || state.waitingForFullBodyStart) {
+      stopWorkout({ reason: "cancel_before_start", skipSummary: true });
+      return;
+    }
+
+    if (state.workoutStarted || state.workoutPausedForNoBody) {
       stopWorkout(false);
       return;
     }
