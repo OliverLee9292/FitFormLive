@@ -18,13 +18,11 @@ It combines real-time pose estimation (MoveNet/BlazePose), 3D avatar retargeting
 
 - **Pose models**
   - MoveNet Lightning (TF.js) for Training/Challenge (17 keypoints; fast on-device).
-  - BlazePose GHUM 3D (MediaPipe runtime) for Avatar mode (33 keypoints + 3D coords) driving the avatar and pose overlay.
-- **Exercise definitions**: Per-exercise thresholds, start posture checks, feedback strings, and quality targets for curls, squats, lunges, push-ups, shoulder press (`web/js/workout.js`).
-- **TTS**: Browser `speechSynthesis` + optional pre-recorded MP3s (`web/audio/tts/...`), generation via `python tools/generate_tts.py`.
-- **Avatar**: Three.js + GLTF retargeting BlazePose 3D keypoints to bones; mirrored in avatar view, non-mirrored in camera view.
-- **ML classification-ready**: Quality metric helpers (`captureQualityTargets`, `summarizeQualityMetrics`) for future supervised models.
-
-
+  - BlazePose GHUM 3D (MediaPipe runtime) for Avatar mode (33 keypoints + Z) driving the avatar and pose overlay.
+- **Exercise definitions**: Per-exercise thresholds, start posture checks, feedback strings, quality targets for curls/squats/lunges/push-ups/shoulder press (`web/js/workout.js`).
+- **TTS**: Browser `speechSynthesis` + pre-generated MP3 packs (`web/audio/tts`, `web/audio/tts_en`) using `tools/generate_tts*.py`.
+- **Avatar**: Three.js + GLTF retargeting BlazePose 3D keypoints to bones; mirrored avatar view, non-mirrored camera view.
+- **ML-ready**: Quality metric helpers (`captureQualityTargets`, `summarizeQualityMetrics`) for future supervised models.
 
 ## Directory Structure
 
@@ -70,6 +68,26 @@ Refer to `.github/workflows/azure-static-web-apps-*.yml` for the GitHub Actions 
 - **Avatar mode**: BlazePose GHUM 3D for rep logic and pose overlay (camera view non-mirrored), plus a mirrored Three.js avatar view; full-body detection gates countdown/start.
 - **Challenge mode**: MoveNet-based timed rep challenge with selectable duration and HUD timer.
 - **Developer mode**: ML stack overview, feature/label notes, links to training notebooks/code.
+
+## Development History
+- **Problem / goal**: Lower the barrier for beginners to exercise with proper form using only a browser + camera (no install, no backend). Deliver real-time posture analysis, rep counting, avatar mirroring.
+- **Model selection**: MoveNet Lightning (fast, 17 kpts) for Training/Challenge; BlazePose GHUM 3D (33 kpts + Z) for Avatar. Avoided heavier OpenPose; MediaPipe runtime chosen for browser performance.
+- **Architecture**: Fully static web app (Azure Static Web Apps free tier). Modular JS: `main.js` (orchestration), `pose.js` (detectors + normalization), `workout.js` (exercise defs + rep/quality), `avatar.js` (Three.js retarget), `tts.js` (speechSynthesis + local audio), `challenge.js`, `ui.js`. Assets under `web/audio` (ko/en) and `web/models`.
+- **Pose pipeline**: getUserMedia → model inference (MoveNet/BlazePose) → normalized keypoints (17/33) → state machine (rep counting, posture checks) → HUD/TTS → next frame. WebGL backend for speed.
+- **Exercise definitions**: Per-exercise angles, thresholds, start posture checks, feedback strings, quality targets (primary/secondary joints). Rep state machines tuned per movement.
+- **Quality metrics**: Track good/bad posture ratio and angles; exposed helpers for future supervised ML.
+- **TTS evolution**: From browser speechSynthesis to pre-generated MP3 packs (ko/en) using `edge-tts` (or optional Azure Speech) via `tools/generate_tts.py` / `generate_tts_en.py`. Static hosting → zero runtime cost, stable playback offline.
+- **Avatar mode**: BlazePose GHUM 3D keypoints retargeted to Mixamo-style bones in Three.js; camera view non-mirrored, avatar view mirrored. Full-body detection gating start/resume with audio prompts.
+- **UI/UX**: HUD (reps/angle/FPS/status), challenge timer, dual camera/avatar views, developer info panel. Language toggle (KO/EN) for UI + TTS; ko/en audio packs under `web/audio/tts` and `web/audio/tts_en`.
+- **Deployment**: Azure Static Web Apps, static only (`api_location: ""`), GitHub Actions CI/CD, preview on PRs. Zero server cost.
+- **Outcome**: Real-time pose tracking, 3 modes (Training/Avatar/Challenge), offline TTS (ko/en), 3D avatar mirroring, ML-ready quality features, fully static/portable browser app.
+
+## ML Classification Experiments (in-progress)
+- Prototyped pose-quality regression/classification in `tools/classification/`:
+  - `train_regressor_auto.ipynb`: fits regressors on engineered features (angles, distances) against rule-based scores.
+  - `frame_to_csv.ipynb`: converts frame-level pose data to CSV features.
+  - `set_features_with_rule_scores.csv` and `right_curl_score_regressor_auto.joblib`: sample dataset and trained regressor artifact.
+- Plan: refine feature set, add more exercises, and integrate a lightweight quality model into the app when performance/latency budgets allow.
 
 ## Quality Metrics
 
