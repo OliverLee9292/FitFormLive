@@ -11,8 +11,8 @@ It combines real-time pose estimation (MoveNet/BlazePose), 3D avatar retargeting
 - On-device models (MoveNet/BlazePose) keep latency low and protect privacy while delivering coach-like guidance.
 
 ## Timeline
-- Team sprint: 2025-11-11 (Tue) ~ 2025-11-20 (Thu)
-- Continuing solo development after 2025-11-20
+- **Team Sprint:** Microsoft AI School (8th Cohort, Team 7) – 2025-11-11 (Tue) to 2025-11-20 (Thu)
+- **Post‑Sprint:** Continuing solo development after 2025-11-20
 
 ## Features
 
