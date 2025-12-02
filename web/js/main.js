@@ -559,8 +559,28 @@ async function renderLoop() {
 }
 
 async function getStreamWithFallback() {
-  const primary = { video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" }, audio: false };
-  const fallback = { video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" }, audio: false };
+  const isPortrait = window.innerHeight > window.innerWidth;
+  const idealWidth = isPortrait ? 480 : 1280;
+  const idealHeight = isPortrait ? 640 : 720;
+
+  const primary = { 
+    video: { 
+      width: { ideal: idealWidth }, 
+      height: { ideal: idealHeight }, 
+      facingMode: "user" 
+    }, 
+    audio: false 
+  };
+  
+  const fallback = { 
+    video: { 
+      width: { ideal: isPortrait ? 360 : 640 }, 
+      height: { ideal: isPortrait ? 480 : 480 }, 
+      facingMode: "user" 
+    }, 
+    audio: false 
+  };
+
   try {
     return await navigator.mediaDevices.getUserMedia(primary);
   } catch (e) {

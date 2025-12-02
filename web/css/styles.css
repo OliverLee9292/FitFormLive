@@ -415,16 +415,102 @@ canvas {
 @media (max-width: 768px) {
   .page {
     padding-inline: 12px;
+    padding-top: 16px;
   }
+
   h1 {
+    font-size: 20px;
+  }
+
+  .title-row .emoji {
     font-size: 24px;
   }
-  .hud-card {
-    left: 14px;
-    bottom: 14px;
+
+  .subtitle {
+    font-size: 13px;
   }
+
+  /* Intro Overlay Mobile */
+  #intro-step1>div:nth-child(2) {
+    justify-content: center;
+  }
+
+  .intro-card {
+    max-width: 100%;
+    flex: 1 1 100%;
+  }
+
+  /* Video Shell & Toolbar */
+  .video-shell {
+    padding: 12px;
+    border-radius: 16px;
+  }
+
+  .video-wrapper {
+    aspect-ratio: 3 / 4;
+    /* More vertical space for mobile */
+  }
+
+  .video-toolbar {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .video-toolbar-left {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .video-toolbar>div:last-child {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  /* HUD Mobile Position */
+  .hud-card {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    min-width: auto;
+    padding: 12px;
+  }
+
+  .hud-row {
+    gap: 8px;
+    font-size: 12px;
+  }
+
+  .hud-title {
+    font-size: 14px;
+  }
+
+  /* Exercise Picker Mobile */
+  .exercise-picker-panel {
+    width: 95%;
+    padding: 16px;
+    max-height: 85%;
+  }
+
+  .exercise-picker-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Top Menu Scroll */
   .top-menu {
     overflow-x: auto;
     padding-bottom: 10px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    /* Firefox */
+  }
+
+  .top-menu::-webkit-scrollbar {
+    display: none;
+    /* Chrome/Safari */
+  }
+
+  /* Adjust buttons for touch */
+  .btn {
+    padding: 8px 16px;
   }
 }
