@@ -17,15 +17,18 @@ import {
   DETECTOR_TYPES,
   computeJointAngle,
 } from "./pose.js";
-import {
-  initAvatar,
-  startAvatarAnimation,
-  stopAvatarAnimation,
-  loadAvatarModel,
-  updateAvatarFromPose,
-  setAvatarExerciseKey,
-  resizeAvatarRenderer,
-} from "./avatar.js";
+/* Avatar module dynamically loaded */
+let avatarModule = null;
+
+async function loadAvatarModule() {
+  if (avatarModule) return avatarModule;
+  try {
+    avatarModule = await import("./avatar.js");
+  } catch (err) {
+    console.error("Failed to load avatar module", err);
+  }
+  return avatarModule;
+}
 import { renderExercisePicker, updateHud, showSummaryOverlay, hideSummaryOverlay, setActiveMenu } from "./ui.js";
 import { setChallengeDuration, startChallengeTimer, updateChallengeTimer, resetChallenge } from "./challenge.js";
 import { initLanguage, setLanguage, getLanguage, t, applyStaticText } from "./i18n.js";
@@ -122,6 +125,8 @@ function applyMirror(useMirror) {
 
 function goToIntroStep(step) {
   if (!introOverlay) return;
+  const introStep0 = document.getElementById("intro-step0");
+  if (introStep0) introStep0.style.display = step === 0 ? "flex" : "none";
   if (introStep1) introStep1.style.display = step === 1 ? "flex" : "none";
   if (introStep2) introStep2.style.display = step === 2 ? "flex" : "none";
   introOverlay.style.display = "flex";
@@ -170,19 +175,24 @@ function hideCameraPermissionWarning() {
 }
 
 function showCameraLoading(messageKey = "loading_camera", fallback = "Preparing camera...") {
-  if (!cameraLoadingOverlay || !cameraLoadingText) return;
-  cameraLoadingText.textContent = t(messageKey, fallback);
-  cameraLoadingOverlay.style.display = "flex";
+  const overlay = document.getElementById("global-loading-overlay");
+  const title = document.getElementById("global-loading-title");
+  const sub = document.getElementById("global-loading-subtitle");
+  if (overlay && title) {
+    title.textContent = t(messageKey, fallback);
+    if (sub) sub.style.display = "none";
+    overlay.style.display = "flex";
+  }
 }
 
 function updateCameraLoading(messageKey = "loading_model", fallback = "Loading pose model...") {
-  if (!cameraLoadingOverlay || !cameraLoadingText) return;
-  cameraLoadingText.textContent = t(messageKey, fallback);
+  const title = document.getElementById("global-loading-title");
+  if (title) title.textContent = t(messageKey, fallback);
 }
 
 function hideCameraLoading() {
-  if (!cameraLoadingOverlay) return;
-  cameraLoadingOverlay.style.display = "none";
+  const overlay = document.getElementById("global-loading-overlay");
+  if (overlay) overlay.style.display = "none";
 }
 
 function showCameraBlockedModal() {
@@ -249,7 +259,7 @@ function scheduleDetectorPreload() {
 }
 
 function maybeShowIntro() {
-  goToIntroStep(1);
+  goToIntroStep(0);
   applyIntroSelection(introSelectedMode || "training");
   if (introOverlay) introOverlay.style.display = "flex";
 }
@@ -257,7 +267,7 @@ function maybeShowIntro() {
 function selectExerciseAndStart(key) {
   if (!EXERCISES[key]) return;
   setCurrentExercise(key);
-  setAvatarExerciseKey(key);
+  if (avatarModule) avatarModule.setAvatarExerciseKey(key);
   resetCounter();
   state.workoutStarted = false;
   state.stage = "up";
@@ -335,7 +345,7 @@ function applyAvatarViewMode(mode) {
     if (toggleAvatarViewBtn) toggleAvatarViewBtn.textContent = t("btn_view_camera", "Camera View");
     if (avatarWarningEl) avatarWarningEl.style.display = "flex";
     if (avatarContainer && window.__avatarInitialized) {
-      resizeAvatarRenderer(avatarContainer);
+      if (avatarModule) avatarModule.resizeAvatarRenderer(avatarContainer);
     }
     ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
   }
@@ -458,7 +468,7 @@ async function renderLoop() {
     const angleForHud = angle ?? 0;
 
     if (state.isAvatarMode && state.fullBodyDetected) {
-      updateAvatarFromPose(keypoints33, keypoints3D33);
+      if (avatarModule) avatarModule.updateAvatarFromPose(keypoints33, keypoints3D33);
     }
 
     if (!state.workoutStarted) {
@@ -529,8 +539,8 @@ async function renderLoop() {
         reps: state.reps,
         angle: angleForHud,
         fps: state.fps,
-        label: fb.label,
-        detail: fb.detail,
+        label: getLanguage() === "en" && fb.label_en ? fb.label_en : fb.label,
+        detail: getLanguage() === "en" && fb.detail_en ? fb.detail_en : fb.detail,
         good: fb.good,
       });
     }
@@ -610,6 +620,17 @@ async function startCamera() {
 
     updateCameraLoading("loading_model", "Loading pose model...");
     await ensureDetectorForMode();
+
+    if (state.currentMode === "avatar") {
+      updateCameraLoading("loading_avatar", "Loading 3D Engine...");
+      const mod = await loadAvatarModule();
+      if (mod && !window.__avatarInitialized) {
+        await mod.initAvatar(avatarContainer);
+        window.__avatarInitialized = true;
+      }
+      if (mod && state.running) mod.startAvatarAnimation(); 
+      // check state.running again in case user stopped camera during load
+    }
 
     state.running = true;
     state.lastFrameTime = performance.now();
@@ -787,7 +808,7 @@ function handleMenuChange(target) {
     toggleOverlayBtn.textContent = t("btn_overlay_off", "Hide Skeleton");
     if (avatarContainer) avatarContainer.style.display = "none";
     if (cameraLayer) cameraLayer.style.display = "block";
-    stopAvatarAnimation();
+    if (avatarModule) avatarModule.stopAvatarAnimation();
     resetChallenge(challengeRemainingEl);
     if (startWorkoutBtn) startWorkoutBtn.textContent = t("btn_start", "Start Workout");
   } else if (target === menuAvatarBtn) {
@@ -814,11 +835,7 @@ function handleMenuChange(target) {
     state.workoutPausedForNoBody = false;
     state.waitingForFullBodyStart = false;
     ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
-    if (!window.__avatarInitialized) {
-      initAvatar(avatarContainer);
-      window.__avatarInitialized = true;
-    }
-    startAvatarAnimation();
+    
     if (startWorkoutBtn) startWorkoutBtn.textContent = t("btn_start", "Start Workout");
     resetChallenge(challengeRemainingEl);
   } else if (target === menuChallengeBtn) {
@@ -837,7 +854,7 @@ function handleMenuChange(target) {
     toggleOverlayBtn.textContent = t("btn_overlay_off", "Hide Skeleton");
     if (avatarContainer) avatarContainer.style.display = "none";
     if (cameraLayer) cameraLayer.style.display = "block";
-    stopAvatarAnimation();
+    if (avatarModule) avatarModule.stopAvatarAnimation();
     if (startWorkoutBtn) startWorkoutBtn.textContent = t("btn_challenge_start", "Start Challenge");
     if (challengeView) challengeView.style.display = "block";
   } else if (target === menuDevBtn) {
@@ -851,7 +868,7 @@ function handleMenuChange(target) {
     state.lastAngle = 0;
     if (avatarStyleWrapper) avatarStyleWrapper.style.display = "none";
     if (toggleAvatarViewBtn) toggleAvatarViewBtn.style.display = "none";
-    stopAvatarAnimation();
+    if (avatarModule) avatarModule.stopAvatarAnimation();
     resetChallenge(challengeRemainingEl);
     if (startWorkoutBtn) startWorkoutBtn.textContent = t("btn_start", "Start Workout");
     applyMirror(true);
@@ -876,6 +893,18 @@ function initEventListeners() {
   toggleCameraBtn.addEventListener("click", () => {
     if (!state.running) startCamera();
     else stopCamera();
+  });
+
+  const langCards = document.querySelectorAll(".lang-card");
+  langCards.forEach((card) => {
+    card.addEventListener("click", () => {
+      const lang = card.dataset.lang;
+      setLanguage(lang);
+      setTtsLanguage(lang);
+      applyStaticText();
+      
+      goToIntroStep(1);
+    });
   });
 
   introCards.forEach((card) => {
@@ -967,13 +996,20 @@ function initEventListeners() {
   }
 
   if (avatarStyleSelect) {
-  avatarStyleSelect.addEventListener("change", (e) => {
+  avatarStyleSelect.addEventListener("change", async (e) => {
     const value = e.target.value;
+    showCameraLoading("loading_avatar", "Loading 3D Engine...");
+    const mod = await loadAvatarModule();
+    if (!mod) {
+      hideCameraLoading();
+      return;
+    }
     if (!window.__avatarInitialized) {
-      initAvatar(avatarContainer);
+      await mod.initAvatar(avatarContainer);
       window.__avatarInitialized = true;
     }
-    loadAvatarModel(value);
+    mod.loadAvatarModel(value);
+    hideCameraLoading();
   });
   }
 
@@ -1008,7 +1044,7 @@ function init() {
   initSpeechOnce();
   setTtsLanguage(getLanguage());
   scheduleDetectorPreload();
-  setAvatarExerciseKey(state.currentKey);
+  if (avatarModule) avatarModule.setAvatarExerciseKey(state.currentKey);
   setModelLabel(getDesiredDetectorType());
   updateCurrentExerciseLabel();
   if (hudExercise) {

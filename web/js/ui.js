@@ -64,12 +64,14 @@ export function renderExercisePicker(panelEl, exercises, onSelect, onClose) {
 
 export function showSummaryOverlay(summaryEl, summaryData, onClose) {
   if (!summaryEl) return;
+  const lang = getLanguage();
+  const qText = lang === "en" && summaryData.qualityTextEn ? summaryData.qualityTextEn : summaryData.qualityText;
   summaryEl.innerHTML = `
     <div style="max-width:420px; padding:24px 28px; border-radius:18px; background:rgba(15,23,42,0.98); border:1px solid rgba(148,163,184,0.4); box-shadow:0 24px 60px rgba(0,0,0,0.8);">
       <h2 style="margin:0 0 12px; font-size:20px; font-weight:700;">${t("summary_title", "Workout Summary")}</h2>
       <p style="margin:0 0 8px; font-size:14px; color:#9ca3af;">${summaryData.exerciseName}</p>
       <p style="margin:0 0 4px; font-size:16px;">${t("summary_total", "Total reps")}: <strong>${summaryData.reps}</strong></p>
-      <p style="margin:0 0 12px; font-size:14px; color:#e5e7eb;">${summaryData.qualityText}</p>
+      <p style="margin:0 0 12px; font-size:14px; color:#e5e7eb;">${qText}</p>
       <p style="margin:0 0 16px; font-size:13px; color:#9ca3af;">${t("summary_hint", "Click the screen or press the button below to restart.")}</p>
       <button id="summary-close-btn" class="btn secondary" style="padding:6px 14px; font-size:13px;">${t("picker_close", "Close")}</button>
     </div>

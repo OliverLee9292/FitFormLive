@@ -1,5 +1,6 @@
 import { speakText } from "./tts.js";
 import { state } from "./workout.js";
+import { getLanguage } from "./i18n.js";
 
 export function setChallengeDuration(minutes, remainingEl) {
   state.challengeDurationMinutes = minutes;
@@ -7,14 +8,18 @@ export function setChallengeDuration(minutes, remainingEl) {
   if (remainingEl) {
     remainingEl.textContent = String(minutes).padStart(2, "0") + ":00";
   }
-  speakText(`${minutes}분 도전을 선택했습니다.`);
+  const lang = getLanguage();
+  const text = lang === "en" ? `Selected ${minutes} minute challenge.` : `${minutes}분 도전을 선택했습니다.`;
+  speakText(text);
 }
 
 export function startChallengeTimer() {
   if (!state.challengeDurationMinutes) return;
   state.challengeActive = true;
   state.challengeEndTime = performance.now() + state.challengeDurationMinutes * 60000;
-  speakText(`${state.challengeDurationMinutes}분 도전 시작합니다.`);
+  const lang = getLanguage();
+  const text = lang === "en" ? `Starting ${state.challengeDurationMinutes} minute challenge.` : `${state.challengeDurationMinutes}분 도전 시작합니다.`;
+  speakText(text);
 }
 
 export function updateChallengeTimer(remainingEl, onComplete) {
@@ -27,7 +32,9 @@ export function updateChallengeTimer(remainingEl, onComplete) {
     if (typeof onComplete === "function") {
       onComplete();
     }
-    speakText("도전 종료! 수고하셨습니다.");
+    const lang = getLanguage();
+    const text = lang === "en" ? "Challenge finished! Great job." : "도전 종료! 수고하셨습니다.";
+    speakText(text);
     return;
   }
   const totalSeconds = Math.ceil(remainingMs / 1000);

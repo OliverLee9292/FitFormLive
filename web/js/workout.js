@@ -75,20 +75,26 @@ const baseExercises = {
       if (angle > 150) {
         return {
           label: "Ready",
+          label_en: "Ready",
           detail: "팔을 완전히 편 상태에서 시작합니다.",
+          detail_en: "Start with your arm fully extended.",
           good: false,
         };
       }
       if (angle < 70) {
         return {
           label: "Curl",
+          label_en: "Curl",
           detail: "수축 구간입니다. 상완이 흔들리지 않게 천천히 내려가세요.",
+          detail_en: "Contraction phase. Lower slowly without swaying.",
           good: true,
         };
       }
       return {
         label: "Moving",
+        label_en: "Moving",
         detail: "좋아요, 일정한 속도로 올렸다 내리세요.",
+        detail_en: "Good, maintain a steady pace.",
         good: true,
       };
     },
@@ -113,20 +119,26 @@ const baseExercises = {
       if (angle > 150) {
         return {
           label: "Ready",
+          label_en: "Ready",
           detail: "왼팔을 완전히 편 상태에서 시작합니다.",
+          detail_en: "Start with your left arm fully extended.",
           good: false,
         };
       }
       if (angle < 70) {
         return {
           label: "Curl",
+          label_en: "Curl",
           detail: "왼팔 수축 구간입니다. 어깨는 고정하세요.",
+          detail_en: "Contraction phase. Keep your shoulder fixed.",
           good: true,
         };
       }
       return {
         label: "Moving",
+        label_en: "Moving",
         detail: "좋아요, 리듬을 일정하게 유지하세요.",
+        detail_en: "Good, keep a consistent rhythm.",
         good: true,
       };
     },
@@ -181,27 +193,35 @@ const baseExercises = {
       if (angle > 170) {
         return {
           label: "Stand",
+          label_en: "Stand",
           detail: "완전히 서 있는 상태입니다. 준비가 되면 천천히 내려가세요.",
+          detail_en: "Standing upright. Go down slowly when ready.",
           good: false,
         };
       }
       if (angle < 90) {
         return {
           label: "Too Low",
+          label_en: "Too Low",
           detail: "너무 낮아요. 허리/무릎 부담에 주의하세요.",
+          detail_en: "Too low. Mind your back and knees.",
           good: false,
         };
       }
       if (angle >= 90 && angle <= 110) {
         return {
           label: "Good Depth",
+          label_en: "Good Depth",
           detail: "좋은 깊이입니다. 가슴은 펴고 코어를 조이세요.",
+          detail_en: "Good depth. Keep chest up and core tight.",
           good: true,
         };
       }
       return {
         label: "Half Squat",
+        label_en: "Half Squat",
         detail: "조금 더 내려가면 좋아요.",
+        detail_en: "Go a little deeper if you can.",
         good: false,
       };
     },
@@ -226,27 +246,35 @@ const baseExercises = {
       if (angle > 170) {
         return {
           label: "Stand",
+          label_en: "Stand",
           detail: "상체를 세우고 중심을 잡은 뒤 천천히 내려가세요.",
+          detail_en: "Keep body upright, balance, and lower slowly.",
           good: false,
         };
       }
       if (angle < 85) {
         return {
           label: "Too Low",
+          label_en: "Too Low",
           detail: "너무 깊습니다. 앞무릎이 발끝을 넘지 않게!",
+          detail_en: "Too low. Don't let your knee cross your toes!",
           good: false,
         };
       }
       if (angle >= 90 && angle <= 110) {
         return {
           label: "Good Lunge",
+          label_en: "Good Lunge",
           detail: "좋아요. 상체는 세우고 코어를 긴장하세요.",
+          detail_en: "Good depth. Keep torso upright and core tight.",
           good: true,
         };
       }
       return {
         label: "Shallow",
+        label_en: "Shallow",
         detail: "조금 더 내려가면 좋아요.",
+        detail_en: "Go a little deeper if you can.",
         good: false,
       };
     },
@@ -271,27 +299,35 @@ const baseExercises = {
       if (angle > 170) {
         return {
           label: "Stand",
+          label_en: "Stand",
           detail: "상체를 세우고 중심을 잡은 뒤 천천히 내려가세요.",
+          detail_en: "Keep body upright, balance, and lower slowly.",
           good: false,
         };
       }
       if (angle < 85) {
         return {
           label: "Too Low",
+          label_en: "Too Low",
           detail: "너무 깊습니다. 앞무릎이 발끝을 넘지 않게!",
+          detail_en: "Too low. Don't let your knee cross your toes!",
           good: false,
         };
       }
       if (angle >= 90 && angle <= 110) {
         return {
           label: "Good Lunge",
+          label_en: "Good Lunge",
           detail: "좋아요. 상체는 세우고 코어를 긴장하세요.",
+          detail_en: "Good depth. Keep torso upright and core tight.",
           good: true,
         };
       }
       return {
         label: "Shallow",
+        label_en: "Shallow",
         detail: "조금 더 내려가면 좋아요.",
+        detail_en: "Go a little deeper if you can.",
         good: false,
       };
     },
@@ -346,20 +382,26 @@ const baseExercises = {
       if (angle > 165) {
         return {
           label: "Top",
+          label_en: "Top",
           detail: "팔을 과하게 잠그지 말고 살짝 굽힌 상태를 유지하세요.",
+          detail_en: "Do not aggressively lock your elbows. Keep them slightly bent.",
           good: true,
         };
       }
       if (angle < 70) {
         return {
           label: "Bottom",
+          label_en: "Bottom",
           detail: "가슴이 바닥 가까이 올 때까지 내려가되 허리는 꺾이지 않게!",
+          detail_en: "Lower chest near the floor, but keep your back straight!",
           good: true,
         };
       }
       return {
         label: "Moving",
+        label_en: "Moving",
         detail: "호흡을 유지하면서 일정한 속도로 내려갔다 올라오세요.",
+        detail_en: "Maintain breathing and keep a steady pace.",
         good: true,
       };
     },
@@ -414,20 +456,26 @@ const baseExercises = {
       if (angle > 155) {
         return {
           label: "Lockout",
+          label_en: "Lockout",
           detail: "팔을 완전히 잠그지 말고 살짝 굽혀 주세요.",
+          detail_en: "Do not lock elbows completely. Keep them slightly bent.",
           good: false,
         };
       }
       if (angle < 90) {
         return {
           label: "Bottom",
+          label_en: "Bottom",
           detail: "어깨 아래로 너무 내리지 않게 주의!",
+          detail_en: "Careful not to lower past your shoulders!",
           good: false,
         };
       }
       return {
         label: "Pressing",
+        label_en: "Pressing",
         detail: "천천히 위로 밀어 올리며 코어를 조이세요.",
+        detail_en: "Press up slowly and tighten your core.",
         good: true,
       };
     },
@@ -543,21 +591,27 @@ export function buildSummary() {
   const good = state.goodFrames || 0;
   const ratio = total > 0 ? good / total : 0;
 
-  let qualityText = "분석할 데이터가 부족합니다.";
+  let qtKo = "분석할 데이터가 부족합니다.";
+  let qtEn = "Not enough data to analyze.";
   if (total > 30) {
+    const pct = Math.round(ratio * 100);
     if (ratio >= 0.7) {
-      qualityText = `자세 안정도: 좋음 (좋은 자세 비율 약 ${Math.round(ratio * 100)}%)`;
+      qtKo = `자세 안정도: 좋음 (좋은 자세 비율 약 ${pct}%)`;
+      qtEn = `Posture Stability: Good (Approx ${pct}% good posture)`;
     } else if (ratio >= 0.4) {
-      qualityText = `자세 안정도: 보통 (좋은 자세 비율 약 ${Math.round(ratio * 100)}%)`;
+      qtKo = `자세 안정도: 보통 (좋은 자세 비율 약 ${pct}%)`;
+      qtEn = `Posture Stability: Fair (Approx ${pct}% good posture)`;
     } else {
-      qualityText = `자세 안정도: 개선 필요 (좋은 자세 비율 약 ${Math.round(ratio * 100)}%)`;
+      qtKo = `자세 안정도: 개선 필요 (좋은 자세 비율 약 ${pct}%)`;
+      qtEn = `Posture Stability: Needs Improvement (Approx ${pct}% good posture)`;
     }
   }
 
   return {
     exerciseName: EXERCISES[state.currentKey]?.name || "-",
     reps: state.reps,
-    qualityText,
+    qualityText: qtKo,
+    qualityTextEn: qtEn,
   };
 }
 

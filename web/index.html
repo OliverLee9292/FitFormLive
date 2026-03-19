@@ -23,10 +23,10 @@
       }
     </script>
 
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.16.0/dist/tf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose"></script>
-    <script src="https://aka.ms/csspeech/jsbrowserpackageraw"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.16.0/dist/tf.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@mediapipe/pose"></script>
+    <script defer src="https://aka.ms/csspeech/jsbrowserpackageraw"></script>
 
     <style>
       .intro-card {
@@ -57,7 +57,21 @@
       style="position:fixed; inset:0; background:rgba(8,15,35,0.92); backdrop-filter:blur(6px); display:none; align-items:center; justify-content:center; z-index:9999; padding:24px;"
     >
       <div style="width:100%; max-width:960px; background:rgba(15,23,42,0.95); border:1px solid rgba(148,163,184,0.3); border-radius:20px; padding:24px 24px 28px; color:#e5e7eb; box-shadow:0 30px 80px rgba(0,0,0,0.55);">
-        <div id="intro-step1" style="display:flex; flex-direction:column; gap:18px;">
+        
+        <div id="intro-step0" style="display:flex; flex-direction:column; gap:18px; text-align:center;">
+          <div style="font-size:24px; font-weight:800; margin-bottom:8px;">Welcome to FIT FORM LIVE</div>
+          <div style="font-size:16px; color:#cbd5e1; margin-bottom:16px;">Which language would you like to use?<br/>어떤 언어로 시작하시겠습니까?</div>
+          <div style="display:flex; gap:16px; justify-content:center; flex-wrap:wrap;">
+            <div class="intro-card lang-card" data-lang="en" style="text-align:center;">
+              <div style="font-size:20px; font-weight:800;">🇺🇸 English</div>
+            </div>
+            <div class="intro-card lang-card" data-lang="ko" style="text-align:center;">
+              <div style="font-size:20px; font-weight:800;">🇰🇷 한국어</div>
+            </div>
+          </div>
+        </div>
+
+        <div id="intro-step1" style="display:none; flex-direction:column; gap:18px;">
           <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
             <div>
               <div id="intro-title" style="font-size:22px; font-weight:800;">시작할 모드를 선택하세요</div>
@@ -94,6 +108,15 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <div
+      id="global-loading-overlay"
+      style="position:fixed; inset:0; display:none; align-items:center; justify-content:center; flex-direction:column; background:rgba(8,15,35,0.95); backdrop-filter:blur(8px); z-index:10000; color:#e5e7eb; text-align:center; padding:24px;"
+    >
+      <div class="global-spinner"></div>
+      <div id="global-loading-title" style="font-size:22px; font-weight:800; margin-top:20px;">AI 모델 준비 중 / Preparing AI Models...</div>
+      <div id="global-loading-subtitle" style="font-size:15px; color:#cbd5e1; margin-top:8px; max-width:400px; line-height:1.5;">최초 실행 시 브라우저 환경에 맞춰 초기화하는 데 몇 초가 소요됩니다.<br/>This may take a few seconds during the first run as models are cached.</div>
     </div>
 
     <div
@@ -148,8 +171,8 @@
                   <button id="open-exercise-picker" class="btn secondary" style="margin-left: 8px;">수행 동작 선택</button>
                   <div class="character-select" id="avatar-style-wrapper" style="display:none; margin-left:8px; position:relative;">
                     <select id="avatar-style-select">
-                      <option value="basic">남성</option>
-                      <option value="cute">여성</option>
+                      <option value="basic" id="avatar-male">남성</option>
+                      <option value="cute" id="avatar-female">여성</option>
                     </select>
                   </div>
                 </div>
@@ -200,13 +223,7 @@
                   </div>
                 </div>
 
-                <div
-                  id="camera-loading-overlay"
-                  style="position:absolute; inset:0; display:none; align-items:center; justify-content:center; flex-direction:column; gap:12px; background:rgba(15,23,42,0.7); color:#e5e7eb; z-index:9; text-align:center; padding:16px; border-radius:12px;"
-                >
-                  <div id="camera-loading-text" style="font-size:16px; font-weight:600;">카메라 준비 중...</div>
-                  <div id="camera-loading-sub" style="font-size:13px; color:#cbd5e1;">모델을 불러오고 있습니다. 잠시만 기다려 주세요.</div>
-                </div>
+
 
                 <div class="hud-card">
                   <div class="hud-title" id="hud-exercise">Right Arm Curl</div>
@@ -231,15 +248,15 @@
 
                 <div id="challenge-view" style="display:none;">
                   <div style="padding:16px; background:rgba(15,23,42,0.9); border-radius:16px; border:1px solid rgba(148,163,184,0.3);">
-                    <h2 style="margin:0 0 8px;">도전 모드 타이머</h2>
+                    <h2 style="margin:0 0 8px;" id="challenge-view-title">도전 모드 타이머</h2>
                     <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                      <button class="btn secondary challenge-timer" data-minutes="1">1분</button>
-                      <button class="btn secondary challenge-timer" data-minutes="3">3분</button>
-                      <button class="btn secondary challenge-timer" data-minutes="5">5분</button>
-                      <button class="btn secondary challenge-timer" data-minutes="10">10분</button>
+                      <button class="btn secondary challenge-timer" data-minutes="1" id="challenge-btn-1">1분</button>
+                      <button class="btn secondary challenge-timer" data-minutes="3" id="challenge-btn-3">3분</button>
+                      <button class="btn secondary challenge-timer" data-minutes="5" id="challenge-btn-5">5분</button>
+                      <button class="btn secondary challenge-timer" data-minutes="10" id="challenge-btn-10">10분</button>
                     </div>
                     <div style="margin-top:12px; font-size:14px; color:#e5e7eb;">
-                      남은 시간: <strong id="challenge-remaining">-</strong>
+                      <span id="challenge-remaining-label">남은 시간:</span> <strong id="challenge-remaining">-</strong>
                     </div>
                   </div>
                 </div>
@@ -250,8 +267,8 @@
 
         <div id="avatar-view" style="display:none; width:100%; max-width:1200px; margin-top:20px;">
           <div style="padding:16px; background:rgba(15,23,42,0.9); border-radius:16px; border:1px solid rgba(148,163,184,0.3);">
-            <h2 style="margin:0 0 8px;">3D 아바타 모드</h2>
-            <p style="color:#9ca3af; font-size:14px; margin:0;">
+            <h2 style="margin:0 0 8px;" id="avatar-view-title">3D 아바타 모드</h2>
+            <p style="color:#9ca3af; font-size:14px; margin:0;" id="avatar-view-desc">
               나의 운동 동작을 그대로 따라하는 3D 아바타! 게임처럼 즐기면서 자세를 점검해보세요.
             </p>
           </div>

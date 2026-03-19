@@ -199,7 +199,7 @@ function retargetBones(keypoints) {
 }
 
 export function initAvatar(container) {
-  if (!container || renderer) return;
+  if (!container || renderer) return Promise.resolve();
   scene = new THREE.Scene();
   const aspect = container.clientWidth / container.clientHeight || 1;
   camera = new THREE.PerspectiveCamera(60, aspect, 0.1, 2000);
@@ -221,7 +221,7 @@ export function initAvatar(container) {
   dir.position.set(1, 1.5, 1);
   scene.add(ambient, dir);
 
-  loadAvatarModel("basic");
+  return loadAvatarModel("basic");
 }
 
 export function resizeAvatarRenderer(container) {
@@ -250,54 +250,68 @@ export function stopAvatarAnimation() {
 }
 
 export function loadAvatarModel(name) {
-  const url = AVATAR_MODELS[name] || AVATAR_MODELS.basic;
-  if (!url) return;
-  const loader = new GLTFLoader();
-  const token = ++loadToken;
-
-  loader.load(
-    url,
-    (gltf) => {
-      if (token !== loadToken) return;
-      if (model && scene) {
-        scene.remove(model);
-      }
-      model = gltf.scene || gltf.scenes?.[0];
-      if (!model) return;
-
-      // 중앙 정렬 및 스케일
-      const box = new THREE.Box3().setFromObject(model);
-      const size = box.getSize(new THREE.Vector3());
-      const center = box.getCenter(new THREE.Vector3());
-      model.position.sub(center);
-      const height = size.y || 1;
-      const scale = TARGET_HEIGHT / height;
-      model.scale.setScalar(scale);
-      // align pelvis (약 35% 지점) to world origin then push it further downward
-      const pelvisApprox = (box.min.y + height * 0.35) * scale;
-      model.position.y -= pelvisApprox;
-      model.position.y -= size.y * scale * 5.25; // push further downward (50% more)
-
-      scene.add(model);
-      model.updateMatrixWorld(true);
-      cacheRestData(model);
-
-      // 카메라 프레이밍
-      const newBox = new THREE.Box3().setFromObject(model);
-      const newSize = newBox.getSize(new THREE.Vector3());
-      const maxDim = Math.max(newSize.x, newSize.y);
-      const fovRad = (camera.fov * Math.PI) / 180;
-      let distance = (maxDim / 2) / Math.tan(fovRad / 2) + newSize.z * 1.2;
-      distance *= 3.0;
-      const targetY = -newSize.y * 2.25; // move camera target further below
-      camera.position.set(0, targetY + newSize.y * 0.25, distance);
-      camera.lookAt(0, targetY, 0);
-    },
-    undefined,
-    (err) => {
-      console.error("Avatar load failed", err);
+  return new Promise((resolve, reject) => {
+    const url = AVATAR_MODELS[name] || AVATAR_MODELS.basic;
+    if (!url) {
+      resolve();
+      return;
     }
-  );
+    const loader = new GLTFLoader();
+    const token = ++loadToken;
+
+    loader.load(
+      url,
+      (gltf) => {
+        if (token !== loadToken) {
+          resolve();
+          return;
+        }
+        if (model && scene) {
+          scene.remove(model);
+        }
+        model = gltf.scene || gltf.scenes?.[0];
+        if (!model) {
+          resolve();
+          return;
+        }
+
+        // 중앙 정렬 및 스케일
+        const box = new THREE.Box3().setFromObject(model);
+        const size = box.getSize(new THREE.Vector3());
+        const center = box.getCenter(new THREE.Vector3());
+        model.position.sub(center);
+        const height = size.y || 1;
+        const scale = TARGET_HEIGHT / height;
+        model.scale.setScalar(scale);
+        // align pelvis (약 35% 지점) to world origin then push it further downward
+        const pelvisApprox = (box.min.y + height * 0.35) * scale;
+        model.position.y -= pelvisApprox;
+        model.position.y -= size.y * scale * 5.25; // push further downward (50% more)
+
+        scene.add(model);
+        model.updateMatrixWorld(true);
+        cacheRestData(model);
+
+        // 카메라 프레이밍
+        const newBox = new THREE.Box3().setFromObject(model);
+        const newSize = newBox.getSize(new THREE.Vector3());
+        const maxDim = Math.max(newSize.x, newSize.y);
+        const fovRad = (camera.fov * Math.PI) / 180;
+        let distance = (maxDim / 2) / Math.tan(fovRad / 2) + newSize.z * 1.2;
+        distance *= 3.0;
+        const targetY = -newSize.y * 2.25; // move camera target further below
+        camera.position.set(0, targetY + newSize.y * 0.25, distance);
+        camera.lookAt(0, targetY, 0);
+        
+        resolve();
+      },
+      undefined,
+      (err) => {
+        console.error("Avatar load failed", err);
+        resolve(); // resolve anyway so we don't break the promise chain
+      }
+    );
+  });
 }
 
 export function setAvatarExerciseKey() {
